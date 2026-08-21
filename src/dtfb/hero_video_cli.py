@@ -19,11 +19,11 @@ import argparse
 import sys
 from pathlib import Path
 
-from imaging import assets
-from imaging.compose import render_hero_video
-from imaging.compose.hero_video import (BARS_PER_LOOP, DEFAULT_BPM, DEFAULT_VIDEO_FORMAT,
+from dtfb.imaging import assets
+from dtfb.imaging.compose import render_hero_video
+from dtfb.imaging.compose.hero_video import (BARS_PER_LOOP, DEFAULT_BPM, DEFAULT_VIDEO_FORMAT,
                                           VIDEO_FORMATS)
-from imaging.select import order_for_conveyor_start, pick_all_for_carousel
+from dtfb.imaging.select import order_for_conveyor_start, pick_all_for_carousel
 
 
 def resolve_asset_arg(category: str, value: str | None, default_name: str | None = None) -> Path:
@@ -107,7 +107,7 @@ def main():
         # (base_angle, start, end) -- the renderer spins base_angle over
         # the run, so only the seeded starting angle is decided here.
         import random as _random
-        from imaging.palette import colors_from_details, vehicle_gradient_colors
+        from dtfb.imaging.palette import colors_from_details, vehicle_gradient_colors
         ext, inr = colors_from_details(vehicle_folder)
         sample = next(iter(sorted(cutout_dir.glob("*.png"))), None)
         start, end = vehicle_gradient_colors(ext, inr, sample)
@@ -133,7 +133,7 @@ def main():
 
 def render_one(fmt, args, vehicle_folder, border_path, background_video, gradient_colors,
                 audio_path, bars_per_loop, carousel_paths, carousel_labels):
-    from vehicle_pipeline import video_output_path
+    from dtfb.vehicle_pipeline import video_output_path
 
     spec = VIDEO_FORMATS[fmt]
     out_path = Path(args.out) if args.out else video_output_path(vehicle_folder, fmt)

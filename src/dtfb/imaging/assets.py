@@ -27,7 +27,19 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-ASSETS_DIR = Path(__file__).parent.parent / "assets"
+def _find_assets_dir() -> Path:
+    import os
+    if "DTFB_ASSETS_DIR" in os.environ:
+        return Path(os.environ["DTFB_ASSETS_DIR"])
+    curr = Path(__file__).resolve()
+    for parent in curr.parents:
+        candidate = parent / "assets"
+        if (candidate / "manifest.json").exists():
+            return candidate
+    return Path(__file__).resolve().parents[3] / "assets"
+
+
+ASSETS_DIR = _find_assets_dir()
 MANIFEST_PATH = ASSETS_DIR / "manifest.json"
 
 

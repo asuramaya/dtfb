@@ -18,7 +18,7 @@ from urllib.parse import urlparse
 import requests
 from PIL import Image
 
-from scrape import Vehicle
+from dtfb.scrape import Vehicle
 
 
 WHEEL_DUPLICATE_SIMILARITY = 0.9995
@@ -158,10 +158,10 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
 
     _clear_stale_gallery(images_dir)
 
-    from imaging.pipeline import evaluate_photo, should_extract_wheel
-    from imaging.cutout import remove_background
-    from imaging.upscale import upscale
-    from imaging.wheel import extract_wheel_shot
+    from dtfb.imaging.pipeline import evaluate_photo, should_extract_wheel
+    from dtfb.imaging.cutout import remove_background
+    from dtfb.imaging.upscale import upscale
+    from dtfb.imaging.wheel import extract_wheel_shot
 
     ext_dir = images_dir / "exterior"
     int_dir = images_dir / "interior"
@@ -304,7 +304,7 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
     # so anything demoted joins that batch and gets its letterbox pass and
     # its number like any other interior photo.
     if strict_cutouts and cutout_sources:
-        from imaging.gallery import find_foreign_cutouts
+        from dtfb.imaging.gallery import find_foreign_cutouts
 
         try:
             foreign = find_foreign_cutouts(cutout_dir, backbone=classifier.backbone)
@@ -342,7 +342,7 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
             )
 
     if interior_buffer:
-        from imaging.letterbox import crop_bars, detect_batch_bars
+        from dtfb.imaging.letterbox import crop_bars, detect_batch_bars
 
         int_dir.mkdir(parents=True, exist_ok=True)
         decoded = [Image.open(io.BytesIO(content)) for _, content, _ in interior_buffer]

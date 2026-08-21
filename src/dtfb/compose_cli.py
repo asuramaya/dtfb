@@ -19,9 +19,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from imaging import assets
-from imaging.compose import LAYOUTS, compose_hero
-from imaging.select import pick_for_layout
+from dtfb.imaging import assets
+from dtfb.imaging.compose import LAYOUTS, compose_hero
+from dtfb.imaging.select import pick_for_layout
 
 
 def list_assets():

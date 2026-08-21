@@ -13,14 +13,14 @@ from pathlib import Path
 
 import requests
 
-import manifest as fetch_manifest
-from facebook_post import build_facebook_post, check_pricing_consistency, explain_facebook_post
-from social_post import build_instagram_caption, build_threads_post
-from imaging.compose import compose_interiors, compose_vehicle, compose_wheel_shots
-from photos import download_photos
-from scrape import (USER_AGENT, condition_bucket, fetch_rendered_html, normalize_vehicle,
+import dtfb.manifest as fetch_manifest
+from dtfb.facebook_post import build_facebook_post, check_pricing_consistency, explain_facebook_post
+from dtfb.social_post import build_instagram_caption, build_threads_post
+from dtfb.imaging.compose import compose_interiors, compose_vehicle, compose_wheel_shots
+from dtfb.photos import download_photos
+from dtfb.scrape import (USER_AGENT, condition_bucket, fetch_rendered_html, normalize_vehicle,
                      vehicle_folder_name, vin_from_url)
-from window_sticker import download_window_sticker
+from dtfb.window_sticker import download_window_sticker
 
 
 def log(msg: str) -> None:
@@ -48,7 +48,7 @@ def new_page(playwright, headed: bool):
 def video_output_path(folder: Path, fmt: str) -> Path:
     """bundle/hero-video.mp4 stays the square one so nothing that already
     points at it breaks; the other aspects get suffixed siblings."""
-    from imaging.compose.hero_video import DEFAULT_VIDEO_FORMAT
+    from dtfb.imaging.compose.hero_video import DEFAULT_VIDEO_FORMAT
 
     name = "hero-video.mp4" if fmt == DEFAULT_VIDEO_FORMAT else f"hero-video-{fmt}.mp4"
     return folder / "bundle" / name
@@ -59,12 +59,12 @@ def render_vehicle_video(folder: Path, hero_opts, fmt: str = "square") -> dict |
     produced. Returns None (not an error) when the gallery can't fill the
     3-slot conveyor. Mirrors hero_video_cli.py, which stays the way to
     re-render one vehicle without re-scraping."""
-    from imaging.compose.hero_video import VIDEO_FORMATS
+    from dtfb.imaging.compose.hero_video import VIDEO_FORMATS
 
     spec = VIDEO_FORMATS[fmt]
-    from imaging.compose import render_hero_video
-    from imaging.palette import colors_from_details, vehicle_gradient_colors
-    from imaging.select import order_for_conveyor_start, pick_all_for_carousel
+    from dtfb.imaging.compose import render_hero_video
+    from dtfb.imaging.palette import colors_from_details, vehicle_gradient_colors
+    from dtfb.imaging.select import order_for_conveyor_start, pick_all_for_carousel
 
     cutout_dir = folder / "images" / "exterior" / "cutout"
     carousel = pick_all_for_carousel(cutout_dir, wheel_dir=folder / "images" / "exterior" / "wheels")
@@ -216,7 +216,7 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
     # imaging/dedupe.py -- advisory only, and wrapped because a warning is
     # never worth failing a scrape over.
     try:
-        from imaging.dedupe import find_shared_gallery, gallery_hashes, record_gallery_hashes
+        from dtfb.imaging.dedupe import find_shared_gallery, gallery_hashes, record_gallery_hashes
 
         exterior_dir = folder / "images" / "exterior"
         hashes = gallery_hashes(exterior_dir)
@@ -319,7 +319,7 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
             # reachable or a response doesn't parse), this is just the
             # pipeline-level belt-and-suspenders on top of that.
             try:
-                from imaging.seat_vision import extract_seat_config
+                from dtfb.imaging.seat_vision import extract_seat_config
 
                 result = extract_seat_config(folder, classifier=hero_opts.interior_classifier)
                 if result is not None:

@@ -23,9 +23,9 @@ import json
 import sys
 from pathlib import Path
 
-from facebook_post import build_facebook_post
-from scrape import Vehicle
-from social_post import build_instagram_caption, build_threads_post
+from dtfb.facebook_post import build_facebook_post
+from dtfb.scrape import Vehicle
+from dtfb.social_post import build_instagram_caption, build_threads_post
 
 WRITERS = {
     "facebook.txt": build_facebook_post,

@@ -1,7 +1,6 @@
 # dtfb · dealer-to-facebook
 
-**dtfb** ("Dealer to Facebook", the acronym is a [double entendre](https://www.urbandictionary.com/define.php?term=DTF))
-automates the workflow of turning a vehicle listing from a dealership website
+**dtfb** ("Dealer to Facebook") automates the workflow of turning a vehicle listing from a dealership website
 into polished, platform-specific social-media posts and high-converting marketing visuals.
 
 Given a vehicle detail page (VDP) URL, it:
@@ -270,7 +269,7 @@ Most automotive CMS platforms embed vehicle data directly into a JavaScript vari
 
 ```python
 # in scrape.py or an extension script:
-from scrape import register_extractor, normalize_vehicle, Vehicle
+from dtfb.scrape import register_extractor, normalize_vehicle, Vehicle
 
 # 1. Define the JavaScript marker and validation function
 CUSTOM_CMS_MARKER = "window.digitalData = "
@@ -338,39 +337,44 @@ python regression.py
 ## Project Structure
 
 ```
-dtfb.py              — CLI entry point, batch processing, and arg parsing
-inventory_sync.py    — Cron-friendly inventory crawler and delist detector
-compose_cli.py       — Custom hero image layout composer
-hero_video_cli.py    — Animated video carousel generator
-posts_cli.py         — Fast social copy regenerator (Marketplace, IG, Threads)
-recompose_cli.py     — Recompose bundles with updated borders/assets
-scrape.py            — Playwright scraper & pluggable CMS extraction registry
-listing.py           — Inventory search page crawler (VDP link discovery)
-photos.py            — Photo gallery downloader and batch pipeline
-window_sticker.py    — Monroney window sticker PDF downloader and parser
-facebook_post.py     — Facebook Marketplace post builder
-social_post.py       — Instagram and Threads post builders
-vehicle_pipeline.py  — Unified orchestrator for end-to-end vehicle processing
-manifest.py          — Incremental fetch tracking & delist detection
-dealer_config.py     — Centralized multi-dealer configuration manager
-imaging/             — Computer vision & media pipeline:
-  ├── classify.py    — CLIP zero-shot vehicle angle classification
-  ├── cutout.py      — rembg (BiRefNet) background removal with alpha gating
-  ├── pipeline.py    — Per-photo analysis (exterior/interior/detail scoring)
-  ├── gallery.py     — Consensus filtering (removes foreign/mismatched cars)
-  ├── letterbox.py   — Automated dealer watermark/banner cropping
-  ├── interior.py    — Interior white-balance correction & feature extraction
-  ├── wheel.py       — SAM2 / CLIPSeg wheel extraction and enhancement
-  ├── select.py      — Hero and accent photo selection algorithms
-  ├── dedupe.py      — Perceptual-hash image deduplication
-  ├── sticker.py     — Window sticker PDF text and option parser
-  ├── upscale.py     — Real-ESRGAN / SwinIR super-resolution upscaler
-  ├── seat_vision.py — Seating configuration classifier (YOLO + CLIP)
-  ├── palette.py     — Dominant vehicle paint color extractor
-  └── compose/       — Composition engines for hero collages and video
+src/dtfb/            — Core package
+  ├── cli.py         — Main CLI entry point ('dtfb')
+  ├── inventory_sync.py — Cron-friendly inventory crawler and delist detector
+  ├── compose_cli.py — Custom hero image layout composer
+  ├── hero_video_cli.py — Animated video carousel generator
+  ├── posts_cli.py   — Fast social copy regenerator (Marketplace, IG, Threads)
+  ├── recompose_cli.py — Recompose bundles with updated borders/assets
+  ├── scrape.py      — Playwright scraper & pluggable CMS extraction registry
+  ├── listing.py     — Inventory search page crawler (VDP link discovery)
+  ├── photos.py      — Photo gallery downloader and batch pipeline
+  ├── window_sticker.py — Monroney window sticker PDF downloader and parser
+  ├── facebook_post.py — Facebook Marketplace post builder
+  ├── social_post.py — Instagram and Threads post builders
+  ├── vehicle_pipeline.py — Unified orchestrator for end-to-end vehicle processing
+  ├── manifest.py    — Incremental fetch tracking & delist detection
+  ├── dealer_config.py — Centralized multi-dealer configuration manager
+  └── imaging/       — Computer vision & media pipeline:
+      ├── classify.py    — CLIP zero-shot vehicle angle classification
+      ├── cutout.py      — rembg (BiRefNet) background removal with alpha gating
+      ├── pipeline.py    — Per-photo analysis (exterior/interior/detail scoring)
+      ├── gallery.py     — Consensus filtering (removes foreign/mismatched cars)
+      ├── letterbox.py   — Automated dealer watermark/banner cropping
+      ├── interior.py    — Interior white-balance correction & feature extraction
+      ├── wheel.py       — SAM2 / CLIPSeg wheel extraction and enhancement
+      ├── select.py      — Hero and accent photo selection algorithms
+      ├── dedupe.py      — Perceptual-hash image deduplication
+      ├── sticker.py     — Window sticker PDF text and option parser
+      ├── upscale.py     — Real-ESRGAN / SwinIR super-resolution upscaler
+      ├── seat_vision.py — Seating configuration classifier (YOLO + CLIP)
+      ├── palette.py     — Dominant vehicle paint color extractor
+      └── compose/       — Composition engines for hero collages and video
 assets/              — Branded borders, background images, video/audio loops
 scrape_fixtures/     — Checked-in HTML fixtures for regression tests
-tests/               — Pytest test suite
+tests/               — Pytest unit test suite
+daily_sync.sh        — Reference daily automation script
+scrape_regression.py — Scraper regression test runner
+regression.py        — Computer vision & calibration regression test runner
+setup.py             — Package configuration & entry points
 ```
 
 ---

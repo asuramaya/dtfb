@@ -66,18 +66,18 @@ import json
 import sys
 from pathlib import Path
 
-CAL_DIR = Path(__file__).parent / "imaging" / "calibration"
+CAL_DIR = Path(__file__).parent / "src" / "dtfb" / "imaging" / "calibration"
 
 
 def run_scene_and_wheel_cases() -> tuple[int, int]:
-    from imaging.classify import (
+    from dtfb.imaging.classify import (
         InteriorExteriorTiebreakClassifier,
         SceneClassifier,
         SpareTireClassifier,
         WheelDetailClassifier,
     )
-    from imaging.pipeline import evaluate_photo, should_extract_wheel
-    from imaging.wheel import extract_wheel_shot
+    from dtfb.imaging.pipeline import evaluate_photo, should_extract_wheel
+    from dtfb.imaging.wheel import extract_wheel_shot
 
     manifest = json.loads((CAL_DIR / "expected.json").read_text())
     scene_clf = SceneClassifier()
@@ -113,7 +113,7 @@ def run_scene_and_wheel_cases() -> tuple[int, int]:
 def run_banner_cases() -> tuple[int, int]:
     from PIL import Image
 
-    from imaging.letterbox import detect_banner
+    from dtfb.imaging.letterbox import detect_banner
 
     manifest = json.loads((CAL_DIR / "banner_expected.json").read_text())
     failures = 0
@@ -136,8 +136,8 @@ def run_banner_cases() -> tuple[int, int]:
 
 
 def run_gallery_cases() -> tuple[int, int]:
-    from imaging.classify import default_backbone
-    from imaging.gallery import CERTAIN_SIMILARITY, find_foreign_cutouts
+    from dtfb.imaging.classify import default_backbone
+    from dtfb.imaging.gallery import CERTAIN_SIMILARITY, find_foreign_cutouts
 
     manifest = json.loads((CAL_DIR / "gallery_expected.json").read_text())
     backbone = default_backbone()
@@ -170,7 +170,7 @@ def run_interior_cases() -> tuple[int, int]:
     import numpy as np
     from PIL import Image
 
-    from imaging.interior import enhance_interior
+    from dtfb.imaging.interior import enhance_interior
 
     def stats(img):
         arr = np.asarray(img.convert("RGB")).astype(np.float32) / 255
@@ -206,7 +206,7 @@ def run_interior_cases() -> tuple[int, int]:
 
 
 def run_sticker_cases() -> tuple[int, int]:
-    from imaging.sticker import parse_sticker
+    from dtfb.imaging.sticker import parse_sticker
 
     manifest = json.loads((CAL_DIR / "sticker_expected.json").read_text())
     failures = 0
@@ -237,7 +237,7 @@ def run_sticker_cases() -> tuple[int, int]:
 
 
 def run_select_cases() -> tuple[int, int]:
-    from imaging.select import (pick_adaptive, pick_all_for_carousel, pick_for_carousel,
+    from dtfb.imaging.select import (pick_adaptive, pick_all_for_carousel, pick_for_carousel,
                                  pick_for_conveyor, pick_for_quad_layout, pick_hero_shots,
                                  order_for_conveyor_start)
 

@@ -18,8 +18,8 @@ from pathlib import Path
 import requests
 from PIL import Image
 
-from imaging.sticker import find_panel_split_x, parse_sticker
-from scrape import Vehicle, download_file
+from dtfb.imaging.sticker import find_panel_split_x, parse_sticker
+from dtfb.scrape import Vehicle, download_file
 
 PLACEHOLDER_STICKER_MARKERS = ("check back later", "has not yet been", "not available")
 

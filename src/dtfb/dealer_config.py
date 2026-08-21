@@ -10,7 +10,7 @@ dealer-specific behaviour now reads it from here. The loader tries, in order:
   3. Built-in defaults (the Tomball Ford originals)
 
 Usage:
-    from dealer_config import load
+    from dtfb.dealer_config import load
 
     cfg = load()
     print(cfg.dealer_greeting)

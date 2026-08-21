@@ -26,8 +26,8 @@ import json
 import sys
 from pathlib import Path
 
-from imaging import assets
-from imaging.compose import compose_interiors, compose_vehicle, compose_wheel_shots
+from dtfb.imaging import assets
+from dtfb.imaging.compose import compose_interiors, compose_vehicle, compose_wheel_shots
 
 
 def find_vehicle_folders(root: Path) -> list[Path]:
@@ -132,8 +132,8 @@ def main():
     print(f"{len(folders)} vehicle(s)\n")
 
     if args.calibrate:
-        from imaging.classify import default_backbone
-        from imaging.gallery import CERTAIN_SIMILARITY, calibrate
+        from dtfb.imaging.classify import default_backbone
+        from dtfb.imaging.gallery import CERTAIN_SIMILARITY, calibrate
 
         record = calibrate(root, backbone=default_backbone())
         if record is None:
@@ -149,8 +149,8 @@ def main():
                   f"margin {record['margin_to_worst_genuine']}\n")
 
     if args.prune_foreign:
-        from imaging.classify import default_backbone
-        from imaging.gallery import demote_foreign_cutouts
+        from dtfb.imaging.classify import default_backbone
+        from dtfb.imaging.gallery import demote_foreign_cutouts
 
         backbone = default_backbone()
         pruned = 0
@@ -166,7 +166,7 @@ def main():
             print(f"  would rebuild {f.name}")
         return
 
-    from imaging.compose.pipeline import DEFAULT_HERO_STILL_FORMAT, HERO_STILL_FORMATS
+    from dtfb.imaging.compose.pipeline import DEFAULT_HERO_STILL_FORMAT, HERO_STILL_FORMATS
     if not args.hero_format:
         hero_formats = (DEFAULT_HERO_STILL_FORMAT,)
     elif "all" in args.hero_format:
@@ -183,7 +183,7 @@ def main():
                  gradient=gradient)
     interior_classifier = None
     if args.interiors and args.interior_captions:
-        from imaging.interior import InteriorSubjectClassifier
+        from dtfb.imaging.interior import InteriorSubjectClassifier
         interior_classifier = InteriorSubjectClassifier()
 
     total_hero = total_framed = total_interior = 0

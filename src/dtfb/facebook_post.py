@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import re
 
-from dealer_config import get as _get_dealer_config
-from scrape import Vehicle
+from dtfb.dealer_config import get as _get_dealer_config
+from dtfb.scrape import Vehicle
 
 # Fixed dealer/salesperson greeting + address for every FB post -- this is
 # the dealer's own boilerplate, not vehicle data, so it isn't sourced from

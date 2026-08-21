@@ -60,7 +60,7 @@ VIN_URL_CASES = [
 
 
 def check_vin_from_url() -> tuple[int, int]:
-    from scrape import vin_from_url
+    from dtfb.scrape import vin_from_url
 
     failures = 0
     for url, expect in VIN_URL_CASES:
@@ -74,7 +74,7 @@ def check_vin_from_url() -> tuple[int, int]:
 
 
 def main() -> int:
-    from scrape import normalize_vehicle
+    from dtfb.scrape import normalize_vehicle
 
     manifest = json.loads((FIXTURES_DIR / "expected.json").read_text())
 

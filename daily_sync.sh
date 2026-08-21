@@ -36,7 +36,7 @@ fi
 cd "$REPO_DIR"
 source .venv/bin/activate
 
-python3 dtfb.py "$INVENTORY_URL" \
+dtfb "$INVENTORY_URL" \
     --out "$LISTINGS_ROOT" \
     --sync --vision-seat-check \
     >>"$LOG_FILE" 2>&1
@@ -46,4 +46,3 @@ STATUS=$?
 find "$LOG_DIR" -name "sync-*.log" -mtime +30 -delete
 
 exit $STATUS
-

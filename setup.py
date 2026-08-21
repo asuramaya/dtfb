@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name="dtfb",
@@ -8,6 +8,14 @@ setup(
     long_description_content_type="text/markdown",
     license="MIT",
     python_requires=">=3.11",
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
+    package_data={
+        "dtfb": [
+            "imaging/templates/*",
+            "imaging/calibration/**/*",
+        ],
+    },
     install_requires=[
         "pillow>=12",
         "playwright>=1.62",
@@ -27,12 +35,12 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "dtfb = dtfb:main",
-            "compose = compose_cli:main",
-            "hero-video = hero_video_cli:main",
-            "posts = posts_cli:main",
-            "recompose = recompose_cli:main",
-            "inventory-sync = inventory_sync:main",
+            "dtfb = dtfb.cli:main",
+            "compose = dtfb.compose_cli:main",
+            "hero-video = dtfb.hero_video_cli:main",
+            "posts = dtfb.posts_cli:main",
+            "recompose = dtfb.recompose_cli:main",
+            "inventory-sync = dtfb.inventory_sync:main",
         ],
     },
 )

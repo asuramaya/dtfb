@@ -12,7 +12,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from equipment_search import compile_query, load_searchable_fleet, search
+from dtfb.equipment_search import compile_query, load_searchable_fleet, search
 
 
 def main():

@@ -24,7 +24,15 @@ from pathlib import Path
 
 import requests
 
-ROOT = Path(__file__).parent.parent
+def _find_root_dir() -> Path:
+    curr = Path(__file__).resolve()
+    for parent in curr.parents:
+        if (parent / "assets" / "manifest.json").exists() or (parent / "setup.py").exists():
+            return parent
+    return Path(__file__).resolve().parents[3]
+
+
+ROOT = _find_root_dir()
 ENV_PATH = ROOT / ".env"
 ASSETS_DIR = ROOT / "assets"
 MANIFEST_PATH = ASSETS_DIR / "manifest.json"

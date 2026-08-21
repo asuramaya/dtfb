@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from dealer_config import DealerConfig, load, reload
+from dtfb.dealer_config import DealerConfig, load, reload
 
 
 def test_defaults() -> None:
@@ -76,7 +76,7 @@ def test_dealer_config_dataclass() -> None:
 
 def test_reload_clears_cache() -> None:
     """reload() clears the cached config."""
-    from dealer_config import get as _get
+    from dtfb.dealer_config import get as _get
     cfg1 = _get()
     cfg2 = reload()
     assert cfg2.dealer_name == cfg1.dealer_name

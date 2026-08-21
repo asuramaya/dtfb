@@ -15,7 +15,7 @@ import sys
 import time
 from urllib.parse import urljoin, urlparse
 
-from scrape import USER_AGENT, fetch_rendered_html
+from dtfb.scrape import USER_AGENT, fetch_rendered_html
 
 VDP_LINK_RE = re.compile(r'/vehicle/[A-HJ-NPR-Z0-9]{17}/[^"\'<>]*')
 # [\d,]+ not \d+ -- confirmed real bug this fixes: the site renders this as

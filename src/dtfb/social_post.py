@@ -29,9 +29,9 @@ from __future__ import annotations
 
 import re
 
-from dealer_config import get as _get_dealer_config
-from facebook_post import resolve_display_price
-from scrape import Vehicle
+from dtfb.dealer_config import get as _get_dealer_config
+from dtfb.facebook_post import resolve_display_price
+from dtfb.scrape import Vehicle
 
 THREADS_LIMIT = 500
 # Instagram cuts the caption here with a "... more" link. Everything that

@@ -60,20 +60,20 @@ import requests
 from playwright.sync_api import sync_playwright
 
 import dealer_config
-import manifest as fetch_manifest
-from imaging import assets
-from imaging.classify import (
+import dtfb.manifest as fetch_manifest
+from dtfb.imaging import assets
+from dtfb.imaging.classify import (
     AngleClassifier,
     InteriorExteriorTiebreakClassifier,
     SceneClassifier,
     SpareTireClassifier,
     WheelDetailClassifier,
 )
-from imaging.interior import InteriorSubjectClassifier
-from imaging.dedupe import DEFAULT_TEMPLATES_DIR, JunkFilter
-from listing import expand_listing_url, is_vdp_url
-from scrape import USER_AGENT, vin_from_url
-from vehicle_pipeline import HeroOptions, log, process_vehicle
+from dtfb.imaging.interior import InteriorSubjectClassifier
+from dtfb.imaging.dedupe import DEFAULT_TEMPLATES_DIR, JunkFilter
+from dtfb.listing import expand_listing_url, is_vdp_url
+from dtfb.scrape import USER_AGENT, vin_from_url
+from dtfb.vehicle_pipeline import HeroOptions, log, process_vehicle
 
 
 def expand_urls(raw_urls: list[str], headed: bool) -> tuple[list[str], list[str]]:
@@ -134,7 +134,7 @@ def resolve_video_formats(requested: list[str] | None) -> tuple[str, ...]:
     and YouTube without a second pass. Costs roughly 3x the render time
     (~3.5min vs ~1.2min per vehicle on GPU), so narrow it with
     --video-format square when that matters."""
-    from imaging.compose.hero_video import VIDEO_FORMATS
+    from dtfb.imaging.compose.hero_video import VIDEO_FORMATS
 
     if not requested:
         return tuple(VIDEO_FORMATS)
@@ -150,7 +150,7 @@ def resolve_hero_formats(requested: list[str] | None) -> tuple[str, ...]:
     """Hero still shapes. Square (Marketplace) plus 4:5 portrait (the
     tallest in-feed render Instagram and Facebook allow) by default;
     vertical is Stories-only and the vertical VIDEO serves that better."""
-    from imaging.compose.pipeline import HERO_STILL_FORMATS
+    from dtfb.imaging.compose.pipeline import HERO_STILL_FORMATS
 
     if not requested:
         return ("square", "portrait")

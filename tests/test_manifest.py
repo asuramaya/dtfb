@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import manifest as fetch_manifest
+import dtfb.manifest as fetch_manifest
 
 
 SAMPLE_MANIFEST = {

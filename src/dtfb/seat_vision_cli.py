@@ -20,8 +20,8 @@ import json
 import sys
 from pathlib import Path
 
-from imaging.interior import InteriorSubjectClassifier
-from imaging.seat_vision import extract_seat_config, ollama_available
+from dtfb.imaging.interior import InteriorSubjectClassifier
+from dtfb.imaging.seat_vision import extract_seat_config, ollama_available
 
 
 def find_vehicle_folders(root: Path) -> list[Path]:

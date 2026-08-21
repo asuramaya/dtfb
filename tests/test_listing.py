@@ -1,6 +1,6 @@
 """Tests for the listing URL expander."""
 
-from listing import is_vdp_url, VDP_LINK_RE
+from dtfb.listing import is_vdp_url, VDP_LINK_RE
 
 
 def test_is_vdp_url_true() -> None:

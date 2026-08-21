@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import argparse
 
-from imaging.generate import DEFAULT_MODEL, DEFAULT_SIZE, generate_background
+from dtfb.imaging.generate import DEFAULT_MODEL, DEFAULT_SIZE, generate_background
 
 
 def main():

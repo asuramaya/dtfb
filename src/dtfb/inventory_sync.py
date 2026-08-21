@@ -23,10 +23,10 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from manifest import already_fetched, find_delisted, load_manifest, record_fetch
-from listing import expand_listing_url, is_vdp_url
-from scrape import vin_from_url
-from vehicle_pipeline import process_vehicle, HeroOptions
+from dtfb.manifest import already_fetched, find_delisted, load_manifest, record_fetch
+from dtfb.listing import expand_listing_url, is_vdp_url
+from dtfb.scrape import vin_from_url
+from dtfb.vehicle_pipeline import process_vehicle, HeroOptions
 
 import requests
 from playwright.sync_api import sync_playwright
@@ -38,7 +38,7 @@ def load_config(args) -> dict:
 
     # File
     if args.config:
-        import dealer_config as dc
+        import dtfb.dealer_config as dc
         dc.reload(args.config)
 
     # Environment overrides
