@@ -1,0 +1,4 @@
+# GitHub Linguist overrides
+# Treat offline HTML scraper regression fixtures as vendored / non-detectable so they don't skew repository language stats
+scrape_fixtures/** linguist-vendored
+*.html linguist-detectable=false
