@@ -1,0 +1,15 @@
+{
+  "note": "Real 2022 Ford Escape gallery (8 cutouts, 5 distinct angles, 1 wheel money shot) -- snapshotted with its real angles.json so imaging/select.py's pickers can be pinned without paying for CLIP inference (they're pure functions over that file).",
+  "pick_hero_shots": ["03.png", "04.png", "02.png"],
+  "pick_for_quad_layout": ["03.png", "02.png", "06.png", "04.png"],
+  "pick_for_conveyor": ["03.png", "02.png", "06.png"],
+  "pick_adaptive": {"layout": "quad", "shots": ["03.png", "02.png", "06.png", "04.png"]},
+  "pick_for_carousel": [["03.png", "front_3q"], ["02.png", "front"], ["04.png", "side"],
+                         ["05.png", "rear_3q"], ["06.png", "rear"], ["10.png", "wheel"]],
+  "pick_all_for_carousel": [["03.png", "front_3q"], ["01.png", "front_3q"], ["02.png", "front"],
+                             ["04.png", "side"], ["08.png", "side"], ["05.png", "rear_3q"],
+                             ["07.png", "rear_3q"], ["06.png", "rear"], ["10.png", "wheel"]],
+  "order_for_conveyor_start": [["03.png", "front_3q"], ["06.png", "rear"], ["01.png", "front_3q"],
+                                ["04.png", "side"], ["08.png", "side"], ["05.png", "rear_3q"],
+                                ["07.png", "rear_3q"], ["10.png", "wheel"], ["02.png", "front"]]
+}

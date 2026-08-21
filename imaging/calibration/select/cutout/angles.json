@@ -1,0 +1,34 @@
+{
+  "01.png": {
+    "angle": "front_3q",
+    "confidence": 0.993
+  },
+  "02.png": {
+    "angle": "front",
+    "confidence": 0.968
+  },
+  "03.png": {
+    "angle": "front_3q",
+    "confidence": 0.996
+  },
+  "04.png": {
+    "angle": "side",
+    "confidence": 0.985
+  },
+  "05.png": {
+    "angle": "rear_3q",
+    "confidence": 0.966
+  },
+  "06.png": {
+    "angle": "rear",
+    "confidence": 0.894
+  },
+  "07.png": {
+    "angle": "rear_3q",
+    "confidence": 0.963
+  },
+  "08.png": {
+    "angle": "side",
+    "confidence": 0.95
+  }
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "photo": "warm-tan-king-ranch.jpg",
+    "expect_after": {"r": 0.4321, "g": 0.418, "b": 0.4207, "median": 0.4588, "bright_frac": 0.0},
+    "note": "Real King Ranch tan-leather cabin. The warm cast should survive (r > g, r > b) even after white-balance correction and exposure lift -- correct_white_balance samples bright+near-neutral pixels only, not a grey-world average, specifically so a legitimately warm interior isn't neutralized toward gray."
+  },
+  {
+    "photo": "bright-window-bronco.jpg",
+    "expect_after": {"r": 0.587, "g": 0.601, "b": 0.6053, "median": 0.7137, "bright_frac": 0.3465},
+    "note": "Real photo with a blown-out sunlit window (34.6% of pixels already >0.97). Median is already above enhance_exposure's target, so no lift applies -- before and after should be identical. Exists to pin that highlight protection means 'do nothing; don't ADD deltas that inflate what's already near max, not 'add extra pull-down logic'."
+  }
+]

@@ -1,0 +1,12 @@
+ImageHash==4.3.2
+numpy==2.4.4
+onnxruntime-gpu==1.28.0
+open_clip_torch==3.3.0
+pillow==12.2.0
+playwright==1.62.0
+rembg==2.0.78
+requests==2.34.2
+spandrel==0.4.2
+torch==2.13.0
+torchvision==0.28.0
+transformers==5.14.1

@@ -1,0 +1,86 @@
+{
+  "backgrounds": [
+    {
+      "file": "backgrounds/american-flag.jpg",
+      "name": "American Flag",
+      "tags": [
+        "patriotic",
+        "flag",
+        "red-white-blue",
+        "americana",
+        "waving-fabric"
+      ]
+    },
+    {
+      "file": "backgrounds/futuristic-showroom.png",
+      "name": "Futuristic Showroom",
+      "tags": [
+        "showroom",
+        "sci-fi",
+        "reflective-floor",
+        "ai-generated"
+      ],
+      "prompt": "a sleek futuristic car showroom interior, empty, wide reflective floor, dramatic spotlights, moody atmosphere, no vehicles, no text, no logos"
+    }
+  ],
+  "videos": [
+    {
+      "file": "video/american-flag-waving.mp4",
+      "name": "American Flag Waving",
+      "tags": [
+        "patriotic",
+        "flag",
+        "red-white-blue",
+        "americana",
+        "waving-fabric",
+        "loop"
+      ],
+      "note": "7.0s / 25fps CGI loop. Its final frame is pure black; imaging/compose/hero_video.py::_trim_dark_edges() drops that automatically, so don't re-encode this file to 'fix' it by hand."
+    }
+  ],
+  "audio": [
+    {
+      "file": "audio/its-mine-4bar-loop.wav",
+      "name": "Its Mine",
+      "bars": 4,
+      "tags": [
+        "hype",
+        "loop",
+        "original"
+      ],
+      "note": "Operator-produced seamless 4-bar loop (refrain: 'its mine'). hero_video.py derives the carousel's bar and the hero's beat pulse by dividing this file's measured duration by `bars` then by 4 beats -- so `bars` MUST match the file or every cut drifts off the downbeat."
+    }
+  ],
+  "borders": [
+    {
+      "file": "borders/generic-dealer-frame.png",
+      "name": "Generic Dealer Frame",
+      "tags": [
+        "dealer-frame",
+        "generic",
+        "license-plate-style"
+      ]
+    },
+    {
+      "file": "borders/tomball-ford-frame.png",
+      "name": "Tomball Ford Frame",
+      "tags": [
+        "tomball-ford",
+        "dealer-frame",
+        "default",
+        "license-plate-style"
+      ]
+    },
+    {
+      "file": "borders/tomball-ford-hector-chavez.png",
+      "name": "Tomball Ford Frame (Hector Chavez, retired)",
+      "tags": [
+        "tomball-ford",
+        "dealer-frame",
+        "license-plate-style",
+        "salesperson:hector-chavez",
+        "retired"
+      ]
+    }
+  ]
+}

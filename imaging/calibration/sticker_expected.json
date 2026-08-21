@@ -1,0 +1,36 @@
+[
+  {
+    "pdf": "raptor-merged-price-row.pdf",
+    "expect": {
+      "vin": "1FTFW1RGXPFA30435",
+      "model_line": "F-150 Raptor",
+      "n_equipment_total": 35,
+      "n_optional": 14,
+      "n_warranties": 3,
+      "pricing": {
+        "base_price": "$76,775.00",
+        "destination_and_delivery": "$1,795.00",
+        "total_vehicle_and_options": "$86,185.00",
+        "total_msrp": "$87,980.00"
+      }
+    },
+    "note": "Real bug case: BASE PRICE and DESTINATION & DELIVERY (right column) land on the same visual row as OPTIONAL EQUIPMENT lines (left column) -- 'RAPTOR SERIES' shares a row with 'BASE PRICE $76,775.00'. A label match anchored at a row's first N words missed both fields entirely (silently -- parse_sticker doesn't raise, it just omits the key). Fixed by matching the label as a subsequence anywhere in the row instead. Pin this one to keep it fixed."
+  },
+  {
+    "pdf": "bronco-sport-clean.pdf",
+    "expect": {
+      "vin": "3FMCR9BN0TRE76118",
+      "model_line": "Bronco Sport",
+      "n_equipment_total": 43,
+      "n_optional": 4,
+      "n_warranties": 3,
+      "pricing": {
+        "base_price": "$31,845.00",
+        "destination_and_delivery": "$1,995.00",
+        "total_vehicle_and_options": "$31,845.00",
+        "total_msrp": "$33,840.00"
+      }
+    },
+    "note": "Baseline case where the price rows don't merge with the equipment column -- confirms the subsequence-match fix didn't regress the already-working layout."
+  }
+]

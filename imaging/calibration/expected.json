@@ -1,0 +1,274 @@
+[
+  {
+    "photo": "2023-Ford-F-150-Raptor-PFA15687__exterior_10.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Ford-Bronco-Badlands-TLA76541__exterior_07.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Ford-Bronco-Sport-BIG-Bend-RE76118__exterior_11.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Ford-F-350SD-LARIAT-TEC78576__exterior_11.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Ford-Mustang-GT-5413641__exterior_11.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Ford-Mustang-Mach-E-Premium-TMA05521__exterior_10.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Ford-Transit-150-Base-KB49701__exterior_11.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Ford-Transit-250-Base-KB49710__exterior_12.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-GMC-Sierra-3500HD-SLE-TF252321__exterior_10.jpg",
+    "note": "money shot, detail-labeled",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2027-Ford-Expedition-King-Ranch-EA10174__exterior_11.jpg",
+    "note": "money shot, dark tire recovered by SAM2",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2023-Ford-F-150-Raptor-PFA30435__exterior_10.jpg",
+    "note": "money shot, rerouted partial-body",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2025-Ford-Ranger-Raptor-SLE10738__exterior_11.jpg",
+    "note": "money shot, rerouted partial-body",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Tesla-Model-Y-TA492314__exterior_11.jpg",
+    "note": "money shot, rerouted partial-body",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2026-Toyota-Camry-SE-TU654864__exterior_11.jpg",
+    "note": "money shot, rerouted partial-body",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": true
+    }
+  },
+  {
+    "photo": "2023-Ford-F-150-Raptor-PFA30435__exterior_09.jpg",
+    "note": "tread-on angle, must reject",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": false
+    }
+  },
+  {
+    "photo": "2026-Ford-Bronco-Badlands-TLA76541__exterior_09.jpg",
+    "note": "mounted spare, must reject",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": true,
+      "wheel_accepted": false
+    }
+  },
+  {
+    "photo": "2026-Tesla-Model-Y-TA492314__exterior_01.jpg",
+    "note": "full-car low angle, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Tesla-Model-Y-TA492314__exterior_04.jpg",
+    "note": "full-car side, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-GMC-Sierra-3500HD-SLE-TF252321__exterior_04.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-GMC-Sierra-3500HD-SLE-TF252321__exterior_08.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Ford-Bronco-Badlands-TLA76541__exterior_03.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Ford-Bronco-Sport-BIG-Bend-RE76118__exterior_03.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Ford-F-350SD-LARIAT-TEC78576__exterior_04.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Ford-Mustang-GT-5413641__exterior_03.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Ford-Mustang-Mach-E-Premium-TMA05521__exterior_08.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Ford-Transit-150-Base-KB49701__exterior_03.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2027-Ford-Expedition-King-Ranch-EA10174__exterior_04.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Toyota-Camry-SE-TU654864__exterior_08.jpg",
+    "note": "full-car, must not reroute",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Ford-Bronco-Badlands-TLA76541__exterior_10.jpg",
+    "note": "front studio shot once misfiled interior, must be exterior",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2023-Ford-F-150-Raptor-PFA15687__interior_01.jpg",
+    "note": "confident interior control",
+    "expect": {
+      "category": "interior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Toyota-Camry-SE-TU654864__interior_01.jpg",
+    "note": "confident interior control",
+    "expect": {
+      "category": "interior",
+      "wheel_routed": false
+    }
+  },
+  {
+    "photo": "2026-Tesla-Model-Y-TA492314__interior_08.jpg",
+    "note": "dash screen showing car render: KNOWN-IMPERFECT, scene classifier reads the on-screen car as exterior; recorded as-is for regression detection",
+    "expect": {
+      "category": "exterior",
+      "wheel_routed": false
+    }
+  }
+]

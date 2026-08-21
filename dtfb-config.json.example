@@ -1,0 +1,9 @@
+{
+  "dealer_name": "Tomball Ford",
+  "dealer_greeting": "Ask for Hector Chavez!",
+  "dealer_address": "22702 TX-249, Tomball, TX 77375",
+  "city_tags": ["Tomball", "TomballTX", "Houston", "HoustonCars", "TomballFord"],
+  "default_border_tag": "dealer-frame",
+  "dealer_domain": "tomballford.com",
+  "inventory_url": "https://www.tomballford.com/inventory/all-vehicles/"
+}

@@ -1,0 +1,17 @@
+.venv/
+listings/
+__pycache__/
+*.pyc
+*.pt
+weights/
+imaging/weights/
+.env
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+node_modules/
+.DS_Store
+.osiris

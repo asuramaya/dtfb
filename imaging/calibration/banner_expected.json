@@ -1,0 +1,58 @@
+[
+  {
+    "photo": "banner-top-72px-bronco.jpg",
+    "expect": [
+      72,
+      0
+    ]
+  },
+  {
+    "photo": "banner-top-60px-mustang.jpg",
+    "expect": [
+      60,
+      0
+    ]
+  },
+  {
+    "photo": "banner-top-110px-expedition.jpg",
+    "expect": [
+      110,
+      0
+    ]
+  },
+  {
+    "photo": "banner-top-144px-modely.jpg",
+    "expect": [
+      144,
+      0
+    ]
+  },
+  {
+    "photo": "banner-bottom-65px-maverick-interior.jpg",
+    "expect": [
+      0,
+      65
+    ]
+  },
+  {
+    "photo": "banner-top-12px-mustang-interior.jpg",
+    "expect": [
+      12,
+      0
+    ]
+  },
+  {
+    "photo": "no-banner-bronco-exterior-03.jpg",
+    "expect": [
+      0,
+      0
+    ]
+  },
+  {
+    "photo": "no-banner-bronco-interior-01.jpg",
+    "expect": [
+      0,
+      0
+    ]
+  }
+]
