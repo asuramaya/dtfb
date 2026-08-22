@@ -241,13 +241,13 @@ def _parse_equipment_grid(rows: list[list[Word]]) -> tuple[dict, list[str]]:
         if warranty_row is not None:
             wy = warranty_row[0].y0
             raw = [_row_text([w for w in r if x0 <= w.x0 < x1]) for r in col_rows if r[0].y0 > wy]
-            warranty_lines = _merge_continuations([l for l in raw if l.strip()])
+            warranty_lines = _merge_continuations([line for line in raw if line.strip()])
             col_rows = [r for r in col_rows if r[0].y0 < wy]
 
         lines = [_row_text([w for w in r if x0 <= w.x0 < x1]) for r in col_rows]
-        lines = [l for l in lines if l.strip()]
+        lines = [line for line in lines if line.strip()]
         lines = _merge_continuations(lines)
-        grid[_COLUMN_KEYS[label]] = [_titlecase(l) for l in lines]
+        grid[_COLUMN_KEYS[label]] = [_titlecase(line) for line in lines]
 
     return grid, warranty_lines
 

@@ -192,6 +192,17 @@ def _hook(v: Vehicle) -> str:
 TRIM_ORDER = ["stock", "vin", "drivetrain", "engine", "color", "carfax", "mileage"]
 
 
+def _city_state(addr: str) -> str:
+    """Extract 'City, ST' from a full address string (e.g. '123 Main, Austin, TX 78701' -> 'Austin, TX')."""
+    parts = [p.strip() for p in addr.split(",") if p.strip()]
+    if len(parts) >= 3:
+        st = parts[2].split()[0]
+        return f"{parts[1]}, {st}"
+    elif len(parts) == 2:
+        return f"{parts[0]}, {parts[1]}"
+    return addr
+
+
 def build_threads_post(v: Vehicle, limit: int = THREADS_LIMIT) -> str:
     """A Threads post inside the 500-character cap.
 
@@ -205,7 +216,7 @@ def build_threads_post(v: Vehicle, limit: int = THREADS_LIMIT) -> str:
     """
     hook = _hook(v)
     _cfg = _get_dealer_config()
-    cta = f"{_cfg.dealer_greeting} {_cfg.dealer_address.split(',')[0]}"
+    cta = f"{_cfg.dealer_greeting} {_city_state(_cfg.dealer_address)}"
 
     optional: dict[str, str] = {}
     # Only when the hook didn't already fit it -- otherwise the post says

@@ -298,7 +298,7 @@ def order_for_conveyor_start(pairs: list[tuple[Path, str]], cutout_dir: Path) ->
     post read as one piece.
     """
     hero, left, right = (pick_for_conveyor(cutout_dir) + [None, None, None])[:3]
-    by_path = {p: (p, l) for p, l in pairs}
+    by_path = {p: (p, lbl) for p, lbl in pairs}
     lead = [by_path[p] for p in (hero, right) if p in by_path]
     tail = [by_path[p] for p in (left,) if p in by_path and p not in (hero, right)]
     used = {p for p, _ in lead + tail}

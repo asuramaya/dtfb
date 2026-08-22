@@ -249,7 +249,7 @@ def run_select_cases() -> tuple[int, int]:
         return [p.name for p in paths]
 
     def pair_names(pairs):
-        return [[p.name, l] for p, l in pairs]
+        return [[p.name, lbl] for p, lbl in pairs]
 
     adaptive_layout, adaptive_shots = pick_adaptive(cutout_dir)
     all_carousel = pick_all_for_carousel(cutout_dir, wheel_dir)
@@ -276,7 +276,7 @@ def run_select_cases() -> tuple[int, int]:
 
 
 def run_posts_cases() -> tuple[int, int]:
-    from posts_cli import WRITERS, load_vehicle
+    from dtfb.posts_cli import WRITERS, load_vehicle
 
     posts_dir = CAL_DIR / "posts"
     cases = sorted(p for p in posts_dir.iterdir() if p.is_dir())

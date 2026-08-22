@@ -167,7 +167,7 @@ _EXTRACTORS: list[tuple[str, str, callable]] = []
 
 def register_extractor(name: str, marker: str, validator: callable) -> None:
     """Register a CMS-specific extractor for the analytics blob.
-    
+
     Args:
         name: Human-readable CMS name (e.g. "dealerinspire").
         marker: The JS variable marker string to search for in the HTML.
@@ -187,7 +187,7 @@ register_extractor("dealerinspire", DEALERINSPIRE_VAR_MARKER, _dealerinspire_val
 
 def extract_analytics_object(html: str) -> tuple[dict | None, str | None]:
     """Try every registered CMS extractor, return the first match.
-    
+
     Returns:
         (data, cms_name) where data is the parsed JSON dict and cms_name is
         the name of the extractor that matched (e.g. "dealerinspire").
