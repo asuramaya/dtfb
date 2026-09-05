@@ -131,7 +131,7 @@ def fit_background(bg: Image.Image, canvas_size: tuple[int, int]) -> Image.Image
     bw, bh = bg.size
     scale = max(cw / bw, ch / bh)
     new_size = (round(bw * scale), round(bh * scale))
-    resized = bg.resize(new_size, Image.LANCZOS)
+    resized = bg.resize(new_size, Image.LANCZOS, reducing_gap=2.0)
     left = (resized.width - cw) // 2
     top = (resized.height - ch) // 2
     return resized.crop((left, top, left + cw, top + ch))

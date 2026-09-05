@@ -52,7 +52,6 @@ CARFAX_WAIT_MS = 12000
 
 def fetch_rendered_html(page, url: str, retries: int = 4) -> str:
     """Load a URL in the given Playwright page and return the rendered HTML.
-    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
     Cloudflare's managed challenge usually auto-resolves in a couple seconds
     for a real (even headless) Chromium with a normal UA -- no click/captcha
@@ -83,6 +82,8 @@ def fetch_rendered_html(page, url: str, retries: int = 4) -> str:
     to check than parsing the page for the same fact, since it costs
     nothing to look at before the page even loads.
     """
+    from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
     is_used = "used" in url.lower()
     last_err = None
     for attempt in range(retries + 1):

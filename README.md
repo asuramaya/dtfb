@@ -11,8 +11,8 @@ into polished, platform-specific social-media posts and high-converting marketin
 Given a vehicle detail page (VDP) URL, it:
 
 1. **Scrapes** vehicle specs, full-resolution photo galleries, window stickers, and Carfax history via Playwright (bypassing Cloudflare challenges).
-2. **Processes** photos through a computer vision pipeline — zero-shot CLIP classification, rembg (BiRefNet) background removal, perceptual-hash deduplication, dealer banner cropping, and super-resolution upscaling.
-3. **Composes** hero collages, solo framed images with branded borders, and animated MP4 video carousels.
+2. **Processes** photos through a computer vision pipeline — zero-shot CLIP classification, rembg (BiRefNet) background removal, perceptual-hash deduplication (including a cross-vehicle photo cache that reuses an already-processed cutout when the dealer's CDN serves the same manufacturer stock photo to multiple listings), dealer banner cropping, and super-resolution upscaling.
+3. **Composes** hero collages, solo framed images with branded borders, and animated MP4 video carousels — hero-video rendering runs across parallel workers with GPU-accelerated compositing, and overlaps with the next vehicle's scrape/CV work during a batch sync.
 4. **Generates** ready-to-copy-paste posts for Facebook Marketplace, Instagram, and Threads — each tailored to platform character limits, hashtag strategies, and preview rules.
 5. **Tracks** processed inventory via a persistent manifest, making daily syncs fast and incremental.
 
@@ -23,11 +23,11 @@ dtfb was originally built for [Tomball Ford](https://www.tomballford.com) (a Dea
 ## Hardware & System Requirements
 
 ### Hardware & GPU Acceleration
-- **GPU (Recommended)**: NVIDIA GPU with **4+ GB VRAM** (CUDA support). On a modern GPU, end-to-end processing takes ~20–30 seconds per vehicle.
-- **CPU (Fallback)**: CPU-only execution is fully supported via PyTorch and ONNX Runtime CPU fallbacks, but processing time will be 2–5 minutes per vehicle due to deep-learning models (CLIP, BiRefNet, SwinIR/Real-ESRGAN, SAM2).
+- **GPU (Recommended)**: NVIDIA GPU with **4+ GB VRAM** (CUDA support). `inventory-sync`'s batch pipeline (parallel hero-video rendering across CPU workers, GPU-accelerated compositing, overlapped scrape/CV work across vehicles) measures **~35–50 seconds of effective wall-clock time per vehicle** end-to-end on real inventory, not counting network waits on the dealer site.
+- **CPU (Fallback)**: CPU-only execution is fully supported via PyTorch and ONNX Runtime CPU fallbacks, but processing time will be several minutes per vehicle due to deep-learning models (CLIP, BiRefNet, SwinIR/Real-ESRGAN, SAM2) and CPU-side video compositing.
 
 > **Dependency & CUDA Note**:
-> This package installs heavy computer-vision and ML libraries (`torch`, `torchvision`, `onnxruntime-gpu`, `open_clip_torch`, `rembg`, `spandrel`). Ensure your NVIDIA drivers and CUDA runtime are compatible with your installed PyTorch wheel. If running on a system without a GPU, ONNX Runtime and PyTorch will automatically execute on the CPU.
+> This package requires `onnxruntime-gpu` (not the CPU-only `onnxruntime` package) for `rembg`'s background-removal model to actually run on the GPU — the CPU package silently falls back to ~10x slower CPU inference with no error. It also installs `torch`, `torchvision`, `open_clip_torch`, `rembg`, and `spandrel`. Ensure your NVIDIA drivers and CUDA runtime are compatible with your installed PyTorch wheel. If running on a system without a GPU, ONNX Runtime and PyTorch will automatically execute on the CPU.
 
 ### System Dependencies
 - **Python 3.11+**
@@ -197,7 +197,16 @@ A dedicated CLI designed for cron jobs. It crawls live inventory, skips already-
 
 ```bash
 inventory-sync --inventory-url "https://www.yourdealer.com/inventory/all-vehicles/" --out ~/Documents/listings
+
+# Also run the local-vision front-seat-config check (needs `ollama serve` with
+# gemma4:e2b pulled) -- batched at the end of the run so the model loads once,
+# not once per vehicle
+inventory-sync --inventory-url "..." --out ~/Documents/listings --vision-seat-check
 ```
+
+**Safety valves**: a sync refuses to flag anything as delisted if the listing crawl came back incomplete (`--headed` to debug why), or if more than 30% of previously-seen active inventory would suddenly be flagged missing in one cycle (almost always a bad/narrow crawl, not real turnover). Pass `--confirm-mass-delist` to override either one if you're sure it's genuine.
+
+**"Just Arrived, Photos Coming Soon" placeholders**: a vehicle whose gallery is nothing but the dealer's stock "photos coming soon" graphic is recognized as junk (perceptual-hash matched, see `imaging/templates/`) and left with zero photos rather than a fake cutout of the placeholder. It's marked `photos_pending` in the manifest instead of "done," so the next sync automatically retries it — no manual re-run needed once real photos go up.
 
 ### 3. `posts` — Regenerate Post Copy
 Fast copy re-generation from existing `details.json` files without re-scraping or re-running computer vision models.

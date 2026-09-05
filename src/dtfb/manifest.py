@@ -85,10 +85,21 @@ def already_fetched(out_root: Path, url: str) -> dict | None:
     """Returns the manifest entry if this URL/VIN was already fetched AND
     its output folder is still there with at least details.json in it --
     self-healing against a manifest entry whose folder got deleted or
-    moved by hand, so that doesn't permanently and silently skip a vehicle."""
+    moved by hand, so that doesn't permanently and silently skip a vehicle.
+
+    Also self-heals a vehicle whose gallery had NO real photos last time
+    (photos_pending, see record_fetch) -- a dealer's "Just Arrived, Photos
+    Coming Soon" placeholder is the common real cause (imaging/dedupe.py's
+    JunkFilter drops it, correctly, but that then leaves nothing to
+    photograph). Treating that the same as "never fetched" is what makes
+    the vehicle automatically pick up real photos the moment the dealer
+    uploads them, on whatever the next sync cycle is, with no separate
+    tracking needed -- it just re-enters the normal fetch path."""
     manifest = load_manifest(out_root)
     entry = manifest.get(dedup_key(url))
     if entry is None:
+        return None
+    if entry.get("photos_pending"):
         return None
     folder = Path(out_root) / entry["folder"]
     if not (folder / "details.json").exists():
@@ -120,7 +131,14 @@ def find_delisted(out_root: Path, live_vins: set[str]) -> list[dict]:
 
 
 def record_fetch(out_root: Path, url: str, folder_name: str, vin: str | None = None,
-                  stock_number: str | None = None) -> None:
+                  stock_number: str | None = None, photos_pending: bool = False) -> None:
+    """photos_pending=True marks this fetch as INCOMPLETE despite having
+    produced a folder + details.json -- see already_fetched()'s self-heal.
+    Everything else about the vehicle (details, sticker data, post copy)
+    is still real and still written; only the photo gallery is empty, so
+    there's nothing worth publishing yet. The entry stays in the manifest
+    either way -- find_delisted() still needs it to know this VIN exists
+    and isn't actually gone from the site, just not photographed yet."""
     manifest = load_manifest(out_root)
     manifest[dedup_key(url)] = {
         "url": url,
@@ -128,5 +146,6 @@ def record_fetch(out_root: Path, url: str, folder_name: str, vin: str | None = N
         "vin": vin,
         "stock_number": stock_number,
         "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "photos_pending": photos_pending,
     }
     save_manifest(out_root, manifest)

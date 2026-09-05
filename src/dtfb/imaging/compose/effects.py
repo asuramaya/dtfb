@@ -31,7 +31,6 @@ def make_glow_layer(car: Image.Image, color=DEFAULT_GLOW_COLOR, radius: int = 24
     paste it at (car_x - pad, car_y - pad) so it's centered behind the car.
     """
     from PIL import ImageFilter
-    import numpy as np
 
     rgb = resolve_glow_color(color)
     pad = radius * 2
@@ -39,10 +38,24 @@ def make_glow_layer(car: Image.Image, color=DEFAULT_GLOW_COLOR, radius: int = 24
 
     alpha_padded = Image.new("L", padded_size, 0)
     alpha_padded.paste(car.split()[-1], (pad, pad))
-    blurred = alpha_padded.filter(ImageFilter.GaussianBlur(radius))
 
-    arr = np.asarray(blurred, dtype=np.float64) * intensity
-    blurred = Image.fromarray(np.clip(arr, 0, 255).astype("uint8"), mode="L")
+    # Blur at quarter scale, then upsample back -- a glow halo is smooth by
+    # definition (it's an alpha-channel blur, there's no detail to lose),
+    # and a GaussianBlur's cost scales with pixel count, so this is ~16x
+    # fewer pixels through the blur for a result indistinguishable at glow
+    # radii (>=8px) where this is actually used. Radius is scaled down to
+    # match, floored at 1 so a very small glow still blurs at all.
+    small_size = (max(1, padded_size[0] // 4), max(1, padded_size[1] // 4))
+    small = alpha_padded.resize(small_size, Image.BILINEAR)
+    blurred_small = small.filter(ImageFilter.GaussianBlur(max(1, round(radius / 4))))
+    blurred = blurred_small.resize(padded_size, Image.BILINEAR)
+
+    # Intensity scaling via a LUT (point()) instead of a numpy float64
+    # round-trip -- same clipped multiply, done in C over 256 entries
+    # instead of allocating a full padded-size float64 array per glow.
+    if intensity < 1.0:
+        lut = [min(255, round(v * intensity)) for v in range(256)]
+        blurred = blurred.point(lut)
 
     glow = Image.new("RGBA", padded_size, (*rgb, 0))
     glow.putalpha(blurred)

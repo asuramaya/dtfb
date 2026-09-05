@@ -15,6 +15,7 @@ together.
 """
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 from PIL import Image
@@ -26,6 +27,23 @@ from .effects import paste_with_glow, DEFAULT_GLOW_COLOR
 
 
 DEFAULT_CANVAS_SIZE = (1254, 1254)
+
+
+@lru_cache(maxsize=4)
+def _load_border(border_path: str):
+    """(border_rgba, window, border_mask), decoded once per path.
+
+    compose_vehicle() calls compose_hero() once per hero format plus once
+    per exterior cutout (framed/) plus once per wheel money shot -- 8-12x
+    per vehicle, all against the SAME border file. Each call used to
+    re-decode the ~6MB RGBA PNG, re-scan it for its transparent window
+    (detect_window()) and rebuild its opaque-pixel mask from scratch, all
+    of which are a pure function of border_path alone. Asset files aren't
+    expected to change mid-run, so caching by path is safe; maxsize=4
+    covers every border this process would plausibly use in one run
+    without growing unbounded across a long sync."""
+    border = Image.open(border_path).convert("RGBA")
+    return border, detect_window(border), alpha_mask(border)
 
 
 def compose_hero(background_path, border_path: Path | None, car_paths: list[Path],
@@ -63,11 +81,11 @@ def compose_hero(background_path, border_path: Path | None, car_paths: list[Path
     if layout not in LAYOUTS:
         raise ValueError(f"Unknown layout {layout!r}, pick one of {list(LAYOUTS)}")
 
-    border = Image.open(border_path).convert("RGBA") if border_path is not None else None
-    if border is not None:
+    if border_path is not None:
+        border, window, border_mask = _load_border(str(border_path))
         canvas_size = border.size
-        window = detect_window(border)
     else:
+        border, border_mask = None, None
         window = (0, 0, canvas_size[0], canvas_size[1])
 
     bg = background_path if isinstance(background_path, Image.Image) else Image.open(background_path)
@@ -93,7 +111,6 @@ def compose_hero(background_path, border_path: Path | None, car_paths: list[Path
     # no-op, but only by accident -- resolve_collision() is documented as
     # clearing border ART, and there is none).
     if border is not None:
-        border_mask = alpha_mask(border)
         placements = [
             (x, resolve_collision(border_mask, resized, x, y), resized)
             for x, y, resized in placements

@@ -45,6 +45,7 @@ instead, which open_clip resolves via huggingface.co.
 from __future__ import annotations
 
 import io
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -208,6 +209,21 @@ class ClipBackbone:
     ZeroShotClassifier instances so a scene pass and an angle pass don't
     each pay their own ~600MB GPU load."""
 
+    # How many recent image embeddings to keep -- confirmed real redundancy
+    # this exists to avoid: a single ambiguous "detail" photo can pass
+    # through SceneClassifier, InteriorExteriorTiebreakClassifier,
+    # WheelDetailClassifier and SpareTireClassifier in turn (see
+    # imaging/pipeline.py::evaluate_photo and imaging/wheel.py's routing),
+    # each re-running the SAME image through CLIP's encoder for an
+    # identical embedding, since only the final label-set comparison
+    # actually differs between classifiers. Bounded (not unbounded) since
+    # this backbone is a process-lifetime singleton (default_backbone())
+    # across a whole multi-vehicle sync run -- a handful of entries is
+    # enough to catch this specific back-to-back-calls-on-one-photo
+    # pattern without holding onto photo bytes for the run's whole
+    # duration.
+    _EMBED_CACHE_SIZE = 16
+
     def __init__(self, model_name: str = MODEL_NAME, pretrained: str = PRETRAINED, device: str | None = None):
         self.model_name = model_name
         self.pretrained = pretrained
@@ -215,6 +231,7 @@ class ClipBackbone:
         self._model = None
         self._preprocess = None
         self._tokenizer = None
+        self._embed_cache: "OrderedDict[bytes, object]" = OrderedDict()
 
     @property
     def device(self) -> str:
@@ -264,6 +281,11 @@ class ClipBackbone:
         import torch
         from PIL import Image
 
+        cached = self._embed_cache.get(content)
+        if cached is not None:
+            self._embed_cache.move_to_end(content)
+            return cached
+
         self._ensure_loaded()
         img = Image.open(io.BytesIO(content))
         if img.mode == "RGBA":
@@ -282,6 +304,10 @@ class ClipBackbone:
         with torch.no_grad():
             features = self._model.encode_image(image)
             features /= features.norm(dim=-1, keepdim=True)
+
+        self._embed_cache[content] = features
+        if len(self._embed_cache) > self._EMBED_CACHE_SIZE:
+            self._embed_cache.popitem(last=False)
         return features
 
 

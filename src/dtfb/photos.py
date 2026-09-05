@@ -87,7 +87,8 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
                      wheel_classifier: "WheelDetailClassifier | None" = None,
                      spare_classifier: "SpareTireClassifier | None" = None,
                      interior_tiebreak_classifier: "InteriorExteriorTiebreakClassifier | None" = None,
-                     strict_cutouts: bool = True) -> list[str]:
+                     strict_cutouts: bool = True,
+                     out_root: "Path | None" = None, own_folder: "str | None" = None) -> list[str]:
     """
     Download the gallery, drop known junk templates (pHash), and -- if a
     classifier is supplied -- sort survivors into images/exterior/ and
@@ -121,17 +122,47 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
     definition of the interior gallery here.
 
     Without a classifier, falls back to the flat images/NN.ext layout.
+
+    `out_root`/`own_folder`, when both given, enable the cross-vehicle
+    photo cache (imaging/dedupe.py): a downloaded photo whose exact bytes
+    were already seen (and cut out) for a DIFFERENT vehicle reuses that
+    cutout instead of re-running rembg, and skips the CLIP scene-classify
+    call too, since the category is already known. Confirmed real payoff:
+    dealer.com's CDN mints a fresh unique URL per vehicle even for
+    byte-identical manufacturer stock renders, so dozens of same-trim new
+    vehicles (e.g. Bronco Sport BIG Bend) redundantly pay full CLIP+rembg
+    cost on the SAME image over and over otherwise. Every photo is still
+    saved to this vehicle's own gallery exactly as without the cache --
+    this only skips redundant compute, never output. Off (falls through
+    to full processing every time) when either argument is omitted.
     """
     images_dir.mkdir(parents=True, exist_ok=True)
-    downloaded = []
-    filtered_count = 0
-    for url in v.photo_urls:
+
+    # Fetched concurrently -- these are independent GETs to the same CDN
+    # host, and were previously paid for one at a time even though the
+    # actual processing (junk filter, CLIP, cutout) that follows is CPU/GPU
+    # work with nothing to do with network latency. Order is preserved
+    # (photo_urls' own order, same as before) since downstream numbering
+    # (ext_i/int_i) depends on it -- only the fetch itself is concurrent,
+    # everything after stays sequential exactly as before.
+    def _fetch(url: str):
         try:
             resp = session.get(url, timeout=30)
             resp.raise_for_status()
-            content = resp.content
+            return url, resp.content, None
         except requests.RequestException as e:
-            print(f"    ! download failed ({url}): {e}", file=sys.stderr)
+            return url, None, e
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=min(8, len(v.photo_urls)) or 1) as pool:
+        fetched = list(pool.map(_fetch, v.photo_urls)) if v.photo_urls else []
+
+    downloaded = []
+    filtered_count = 0
+    for url, content, err in fetched:
+        if err is not None:
+            print(f"    ! download failed ({url}): {err}", file=sys.stderr)
             continue
 
         if junk_filter is not None:
@@ -158,10 +189,13 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
 
     _clear_stale_gallery(images_dir)
 
-    from dtfb.imaging.pipeline import evaluate_photo, should_extract_wheel
+    from dtfb.imaging.pipeline import evaluate_photo, should_extract_wheel, PhotoVerdict
     from dtfb.imaging.cutout import remove_background
     from dtfb.imaging.upscale import upscale
     from dtfb.imaging.wheel import extract_wheel_shot
+    from dtfb.imaging.dedupe import photo_hash, lookup_cached_photo, record_photo, blob_path
+
+    cache_enabled = out_root is not None and own_folder is not None
 
     ext_dir = images_dir / "exterior"
     int_dir = images_dir / "interior"
@@ -171,6 +205,7 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
     saved = []
     no_subject_count = 0
     cutout_count = 0
+    reused_count = 0
     wheel_count = 0
     angles: dict[str, dict] = {}
     interior_buffer: list[tuple[int, bytes, str]] = []
@@ -180,11 +215,28 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
     wheel_signatures: list = []
     ext_i = int_i = 0
     for content, ext in downloaded:
-        try:
-            verdict = evaluate_photo(content, classifier, interior_tiebreak_classifier)
-        except Exception as e:
-            print(f"    ! classification failed, keeping unsorted: {e}", file=sys.stderr)
-            verdict = None
+        phash = photo_hash(content) if cache_enabled else None
+        cached = (lookup_cached_photo(out_root, phash, content, own_folder)
+                  if (cache_enabled and phash is not None) else None)
+        cached_blob = None
+        if cached is not None and cached["category"] == "exterior":
+            path = blob_path(out_root, phash)
+            if path.is_file():
+                cached_blob = path.read_bytes()
+
+        if cached is not None and cached["category"] == "exterior":
+            # Known-identical to another vehicle's exterior photo -- skip
+            # the CLIP scene-classify call entirely, we already know the
+            # answer. Cutout reuse (if a blob exists) happens below,
+            # alongside the normal cutout-eligible branch.
+            verdict = PhotoVerdict(category="exterior", cutout_eligible=True,
+                                    clip_label="exterior", clip_confidence=1.0, rembg_checked=False)
+        else:
+            try:
+                verdict = evaluate_photo(content, classifier, interior_tiebreak_classifier)
+            except Exception as e:
+                print(f"    ! classification failed, keeping unsorted: {e}", file=sys.stderr)
+                verdict = None
 
         if verdict is None or verdict.category == "exterior":
             ext_dir.mkdir(parents=True, exist_ok=True)
@@ -216,7 +268,12 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
             # slab was never worth shipping. The decision itself lives in
             # imaging/pipeline.py::should_extract_wheel() so regression.py
             # exercises the exact same code.
-            wheel_route = (spare_classifier is not None
+            # A cache hit came from another vehicle's WHOLE-vehicle cutout
+            # (that's the only kind this module records a blob for -- see
+            # imaging/dedupe.py) -- it was demonstrably not wheel-routed
+            # for that vehicle, so it isn't here either. Skips another
+            # CLIP call (WheelDetailClassifier) for the common case.
+            wheel_route = (cached_blob is None and spare_classifier is not None
                             and should_extract_wheel(content, verdict, wheel_classifier))
 
             if wheel_route:
@@ -252,14 +309,26 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
 
             elif verdict is None or verdict.cutout_eligible:
                 try:
-                    cutout = remove_background(content)
-                    if cutout.quality_ok:
-                        # Saved transparent and cropped tight to the visible pixels (not
-                        # composited onto white) -- so downstream compositing (imaging/compose.py)
-                        # can align/scale cutouts from different angles consistently, and so no
-                        # information is thrown away that a later step might want back.
-                        cropped = cutout.cutout.crop(cutout.bbox)
-                        rgba = upscale(cropped, upscale_model) if upscale_cutouts else cropped
+                    if cached_blob is not None:
+                        # Byte-identical to another vehicle's already-cut-out
+                        # photo (confirmed via exact phash + pixel-diff in
+                        # lookup_cached_photo) -- reuse it instead of paying
+                        # for another rembg pass on the same content.
+                        rgba = Image.open(io.BytesIO(cached_blob)).convert("RGBA")
+                        quality_ok = True
+                        reused_count += 1
+                    else:
+                        cutout = remove_background(content)
+                        quality_ok = cutout.quality_ok
+                        if quality_ok:
+                            # Saved transparent and cropped tight to the visible pixels (not
+                            # composited onto white) -- so downstream compositing (imaging/compose.py)
+                            # can align/scale cutouts from different angles consistently, and so no
+                            # information is thrown away that a later step might want back.
+                            cropped = cutout.cutout.crop(cutout.bbox)
+                            rgba = upscale(cropped, upscale_model) if upscale_cutouts else cropped
+
+                    if quality_ok:
                         cutout_dir.mkdir(parents=True, exist_ok=True)
                         cutout_path = cutout_dir / f"{ext_i:02d}.png"
                         rgba.save(cutout_path)
@@ -270,12 +339,46 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
                         if angle_classifier is not None:
                             try:
                                 a = angle_classifier.classify_file(cutout_path)
-                                angles[cutout_path.name] = {
+                                entry = {
                                     "angle": a.label,
                                     "confidence": round(a.confidence, 3),
                                 }
+                                # Only a "side" angle ever pans in the hero
+                                # video (see hero_video.py's PAN_ANGLE_LABEL),
+                                # so this is the only case worth spending a
+                                # CLIP call on here. Precomputing it now,
+                                # once, with the classifier/backbone this
+                                # process already has loaded, means the video
+                                # renderer (vehicle_pipeline.py::
+                                # render_vehicle_video) never needs a model
+                                # at all -- it used to call detect_hood_side()
+                                # itself, constructing a fresh classifier (and
+                                # re-embedding its text prompts) on every pan
+                                # shot, every render. That made the renderer
+                                # cheap enough to run in a plain worker
+                                # process with no GPU/CLIP dependency.
+                                if a.label == "side":
+                                    try:
+                                        from dtfb.imaging.classify import detect_hood_side
+                                        hood_buf = io.BytesIO()
+                                        rgba.save(hood_buf, format="PNG")
+                                        entry["hood_side"] = detect_hood_side(hood_buf.getvalue())
+                                    except Exception as e:
+                                        print(f"    ! hood-side detection failed for {cutout_path.name}: {e}", file=sys.stderr)
+                                angles[cutout_path.name] = entry
                             except Exception as e:
                                 print(f"    ! angle classification failed for {cutout_path.name}: {e}", file=sys.stderr)
+
+                        if cache_enabled and cached_blob is None and phash is not None:
+                            # A genuinely fresh cutout -- record it (and a
+                            # shared copy of the image) so the NEXT vehicle
+                            # whose gallery includes this same stock photo
+                            # can skip straight to reuse instead of also
+                            # paying for rembg.
+                            buf = io.BytesIO()
+                            rgba.save(buf, format="PNG")
+                            record_photo(out_root, own_folder, dest.name, phash, "exterior",
+                                         cutout_bytes=buf.getvalue())
                 except Exception as e:
                     print(f"    ! cutout failed for exterior/{dest.name}: {e}", file=sys.stderr)
 
@@ -378,6 +481,12 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
         )
     if cutout_count:
         v.warnings.append(f"Generated {cutout_count} transparent cutout(s).")
+    if reused_count:
+        v.warnings.append(
+            f"{reused_count} of {cutout_count} exterior photo(s) are byte-identical to imagery "
+            "already seen on another vehicle -- these look like manufacturer stock renders rather "
+            "than photos of this vehicle, which Facebook Marketplace prohibits."
+        )
     if wheel_count:
         v.warnings.append(f"Found {wheel_count} whole-wheel close-up(s), cut out for a wheel money shot.")
     if angles:

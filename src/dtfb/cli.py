@@ -59,7 +59,7 @@ from pathlib import Path
 import requests
 from playwright.sync_api import sync_playwright
 
-import dealer_config
+import dtfb.dealer_config as dealer_config
 import dtfb.manifest as fetch_manifest
 from dtfb.imaging import assets
 from dtfb.imaging.classify import (

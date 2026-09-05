@@ -32,7 +32,15 @@ dependencies = [
     "torch>=2.0.0",
     "torchvision>=0.15.0",
     "transformers>=4.30.0",
-    "onnxruntime>=1.16.0",
+    # onnxruntime-GPU, not plain onnxruntime -- confirmed real bug this
+    # avoids: the CPU-only package has no CUDA execution provider at all
+    # (get_available_providers() returns only Azure/CPU), silently running
+    # every rembg/BiRefNet cutout on CPU regardless of imaging/cutout.py's
+    # own CUDA-library preload workaround, which has nothing to attach to
+    # without this package. Measured live: ~10s/cutout on CPU vs ~0.9s
+    # warm on GPU once this is installed -- see imaging/cutout.py's
+    # _preload_cuda_libs() docstring for the library-path half of this fix.
+    "onnxruntime-gpu>=1.16.0",
     "open_clip_torch>=2.20.0",
     "rembg>=2.0.50",
     "imagehash>=4.3.0",

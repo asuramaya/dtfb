@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import io
 import json
+import sqlite3
 from pathlib import Path
 
 import imagehash
@@ -86,39 +87,85 @@ def _hash_image(img: Image.Image) -> imagehash.ImageHash:
     return imagehash.phash(img.convert("RGB"))
 
 
-# --- Stock-render detection -------------------------------------------
+# --- Cross-vehicle photo cache ------------------------------------------
 #
-# Separate concern from the junk templates above: this doesn't drop
-# anything, it just notices when a vehicle's gallery is the SAME imagery
-# another vehicle already had. Real case: the two Transit vans are
-# merchandised with manufacturer renders rather than photographs of the
-# actual vans, sharing frames at 0 bits and 0.00 mean pixel difference.
+# Separate concern from the junk templates above: this isn't about
+# dropping anything, it's recognizing when THIS EXACT photo (same bytes)
+# has already been downloaded and fully processed for a DIFFERENT vehicle
+# -- overwhelmingly manufacturer stock renders, since the dealer's CDN
+# mints a fresh unique URL per vehicle even for byte-identical content
+# (confirmed: dozens of same-trim new vehicles, e.g. Bronco Sport BIG
+# Bend, share 13-14 of 14 exterior photos outright). The download itself
+# can't be skipped -- there is no URL-level signal, only the bytes prove
+# identity -- but the expensive part (CLIP classification, rembg cutout)
+# can be, by reusing what an earlier vehicle already computed for the
+# identical content instead of redoing it. Nothing is stripped from any
+# vehicle's output: every photo is still saved to that vehicle's own
+# gallery exactly as before, just without redundant GPU work behind it.
 #
-# Worth surfacing because Marketplace prohibits stock photos outright --
-# "images must be actual photos of the item you're selling" -- and
-# stock/stolen-photo detection is a documented removal trigger. It is the
-# dealer's imagery choice, not something this pipeline introduces, so the
-# right response is a warning on the listing, never a deletion: for those
-# two vans it is the only photography they have.
-#
-# EXACT hash match, then a pixel confirmation. Nothing looser is safe on
-# this content -- 466 pairs from different vehicles fall within the 8-bit
-# junk threshold of each other, and a Model Y matches a Camry there. See
-# the module docstring for that measurement.
+# EXACT hash match, then a pixel confirmation, same conservative pairing
+# the fleet's own photography needs: 466 pairs from genuinely DIFFERENT
+# vehicles fall within the 8-bit junk-filter threshold of each other (a
+# Model Y matches a Camry there), so nothing looser than exact-then-pixel
+# is safe here. See the module docstring for that measurement.
 STOCK_RENDER_MAX_BITS = 0
 STOCK_RENDER_MAX_PIXEL_DIFF = 6.0
-PHOTO_HASH_FILENAME = "photo-hashes.json"
+PHOTO_HASH_FILENAME = "photo-hashes.json"  # legacy, migrated into the DB below
+PHOTO_CACHE_DB_FILENAME = "photo-cache.db"
+_BLOB_DIRNAME = ".photo-blobs"
 
 
-def gallery_hashes(exterior_dir: Path) -> dict[str, str]:
-    """{filename: phash} for one vehicle's exterior photos."""
-    out = {}
-    for path in sorted(Path(exterior_dir).glob("*.jpg")):
-        try:
-            out[path.name] = str(_hash_image(Image.open(path)))
-        except Exception:
-            continue
-    return out
+def _hash_str(img: Image.Image) -> str:
+    return str(_hash_image(img))
+
+
+def _db_path(out_root: Path) -> Path:
+    return Path(out_root) / PHOTO_CACHE_DB_FILENAME
+
+
+def _connect(out_root: Path) -> sqlite3.Connection:
+    """Opens (creating if needed) the shared photo cache DB, one-time
+    migrating the legacy per-vehicle JSON index if it's still there and
+    the DB is empty -- so a mid-fleet upgrade doesn't forget every hash
+    accumulated so far and start re-processing photos it already knows
+    about. The old file is left in place (renamed .migrated) as a backup,
+    never deleted."""
+    conn = sqlite3.connect(_db_path(out_root))
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS photo_cache (
+            phash TEXT PRIMARY KEY,
+            folder TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            category TEXT
+        )
+    """)
+    conn.commit()
+
+    legacy_path = Path(out_root) / PHOTO_HASH_FILENAME
+    if legacy_path.exists():
+        row_count = conn.execute("SELECT COUNT(*) FROM photo_cache").fetchone()[0]
+        if row_count == 0:
+            try:
+                legacy = json.loads(legacy_path.read_text())
+            except (OSError, ValueError):
+                legacy = {}
+            rows = [(h, folder, name, "exterior")
+                    for folder, entries in legacy.items()
+                    for name, h in (entries or {}).items()]
+            if rows:
+                # INSERT OR IGNORE: the legacy index could (rarely) have
+                # recorded the same hash under two folders if a photo was
+                # shared 3+ ways -- first writer wins, same as the DB's own
+                # PRIMARY KEY semantics for any future collision.
+                conn.executemany(
+                    "INSERT OR IGNORE INTO photo_cache (phash, folder, filename, category) VALUES (?, ?, ?, ?)",
+                    rows)
+                conn.commit()
+            try:
+                legacy_path.rename(legacy_path.with_suffix(".json.migrated"))
+            except OSError:
+                pass
+    return conn
 
 
 def _mean_pixel_diff(a: Path, b: Path) -> float:
@@ -136,51 +183,119 @@ def _mean_pixel_diff(a: Path, b: Path) -> float:
     return float(np.abs(np.asarray(ia, dtype=np.float64) - np.asarray(ib, dtype=np.float64)).mean())
 
 
-def find_shared_gallery(out_root: Path, folder_name: str, hashes: dict[str, str],
-                         exterior_dir: Path) -> dict[str, int]:
-    """{other_vehicle_folder: how many photos it shares with this one}.
+def blob_path(out_root: Path, phash: str) -> Path:
+    """Where a content-addressed cutout copy for this hash lives -- shared
+    across every vehicle whose photo hashes to it, so N vehicles sharing
+    one stock render store the cutout ONCE instead of N times."""
+    return Path(out_root) / _BLOB_DIRNAME / f"{phash}.png"
 
-    Reads the index written by record_gallery_hashes(); returns {} on a
-    first run, an unreadable index, or no matches -- this is advisory, so
-    it must never be the reason a scrape fails.
+
+def photo_hash(content: bytes) -> str | None:
+    """The one hash computed per downloaded photo -- callers pass it to
+    both lookup_cached_photo() and record_photo() so it's never computed
+    twice for the same bytes. None if the bytes aren't a readable image."""
+    try:
+        return _hash_str(Image.open(io.BytesIO(content)))
+    except Exception:
+        return None
+
+
+def lookup_cached_photo(out_root: Path, phash: str, content: bytes, own_folder: str) -> dict | None:
+    """If `content` (raw downloaded photo bytes, already hashed to `phash`
+    via photo_hash()) is confirmed identical to a photo already recorded
+    from a DIFFERENT vehicle, returns {"folder", "filename", "category"}
+    for the match -- the caller can reuse that category (skip CLIP) and,
+    if a cutout blob exists at blob_path(), reuse it too (skip rembg).
+    Returns None on a cache miss, an unreadable DB, the source vehicle's
+    file having since moved/gone, or any error -- this is advisory, same
+    as everything else in this module, and must never be the reason a
+    scrape fails or a photo goes unprocessed.
     """
-    index_path = Path(out_root) / PHOTO_HASH_FILENAME
     try:
-        index = json.loads(index_path.read_text())
-    except (OSError, ValueError):
-        return {}
+        conn = _connect(out_root)
+        row = conn.execute(
+            "SELECT folder, filename, category FROM photo_cache WHERE phash = ? AND folder != ?",
+            (phash, own_folder)).fetchone()
+        conn.close()
+        if row is None:
+            return None
+        folder, filename, category = row
+        # category names the subfolder directly ("exterior"/"interior") --
+        # nearly every real hit is exterior stock imagery, but this stays
+        # correct for the rare interior/other match too.
+        source_path = Path(out_root) / folder / "images" / category / filename
+        if not source_path.is_file():
+            return None
+        import numpy as np
+        this_arr = np.asarray(Image.open(io.BytesIO(content)).convert("RGB"), dtype=np.float64)
+        other_arr = np.asarray(Image.open(source_path).convert("RGB"), dtype=np.float64)
+        if this_arr.shape != other_arr.shape:
+            return None
+        if float(np.abs(this_arr - other_arr).mean()) > STOCK_RENDER_MAX_PIXEL_DIFF:
+            return None
+        return {"folder": folder, "filename": filename, "category": category, "phash": phash}
+    except Exception:
+        return None
 
-    lookup: dict[str, list[tuple[str, str]]] = {}
-    for other, entries in index.items():
-        if other == folder_name:
-            continue
-        for name, h in (entries or {}).items():
-            lookup.setdefault(h, []).append((other, name))
 
-    shared: dict[str, int] = {}
-    for name, h in hashes.items():
-        for other, other_name in lookup.get(h, []):
-            other_path = Path(out_root) / other / "images" / "exterior" / other_name
-            if not other_path.is_file():
-                continue
-            if _mean_pixel_diff(Path(exterior_dir) / name, other_path) <= STOCK_RENDER_MAX_PIXEL_DIFF:
-                shared[other] = shared.get(other, 0) + 1
-                break
-    return shared
+def record_photo(out_root: Path, folder: str, filename: str, phash: str, category: str,
+                  cutout_bytes: bytes | None = None) -> None:
+    """Records this photo's hash so later vehicles can find and reuse it.
+    Best-effort: never raises.
 
+    If `cutout_bytes` is given, also stores a shared content-addressed
+    copy of the cutout at blob_path() -- UNLESS one already exists there,
+    since a matching phash means byte-identical source content, so the
+    first real cutout is as good as any later one.
 
-def record_gallery_hashes(out_root: Path, folder_name: str, hashes: dict[str, str]) -> None:
-    """Add this vehicle to the index so later scrapes can be compared
-    against it. Best-effort: a corrupt index is rewritten, never fatal."""
-    index_path = Path(out_root) / PHOTO_HASH_FILENAME
+    Confirmed real bug this upgrade-path avoids: a hash migrated from the
+    legacy JSON index (see _connect()) has no blob behind it at all --
+    that index only ever stored hashes, never images. Plain INSERT OR
+    IGNORE would let that blob-less row permanently squat on its phash's
+    primary-key slot, so no vehicle processed AFTER the migration could
+    ever backfill a real, reusable blob for a hash the fleet has been
+    sharing since before the DB existed -- every future encounter would
+    keep re-paying full cutout cost forever, not just once. Upgrading in
+    place the first time a real cutout shows up for that hash fixes it
+    going forward, at the cost of one paid "warm-up" cutout per
+    previously-blob-less hash, which is unavoidable -- nothing can
+    conjure a cutout image the old index never saved."""
     try:
-        index = json.loads(index_path.read_text())
-        if not isinstance(index, dict):
-            index = {}
-    except (OSError, ValueError):
-        index = {}
-    index[folder_name] = hashes
-    try:
-        index_path.write_text(json.dumps(index, indent=2))
-    except OSError:
+        conn = _connect(out_root)
+        if cutout_bytes is not None and not blob_path(out_root, phash).is_file():
+            # We have a real cutout and no blob-backed entry claims this
+            # hash yet -- REPLACE takes ownership (upgrade), whether the
+            # row is new or a blob-less legacy migration.
+            conn.execute(
+                "INSERT OR REPLACE INTO photo_cache (phash, folder, filename, category) VALUES (?, ?, ?, ?)",
+                (phash, folder, filename, category))
+        else:
+            conn.execute(
+                "INSERT OR IGNORE INTO photo_cache (phash, folder, filename, category) VALUES (?, ?, ?, ?)",
+                (phash, folder, filename, category))
+        conn.commit()
+        conn.close()
+    except Exception:
         pass
+    if cutout_bytes is not None:
+        try:
+            path = blob_path(out_root, phash)
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(cutout_bytes)
+        except OSError:
+            pass
+
+
+def gallery_hashes(exterior_dir: Path) -> dict[str, str]:
+    """{filename: phash} for one vehicle's exterior photos. Kept for any
+    external/debugging use; download_photos() no longer needs this --
+    it hashes and records each photo as it's downloaded, via
+    lookup_cached_photo()/record_photo() above."""
+    out = {}
+    for path in sorted(Path(exterior_dir).glob("*.jpg")):
+        try:
+            out[path.name] = _hash_str(Image.open(path))
+        except Exception:
+            continue
+    return out

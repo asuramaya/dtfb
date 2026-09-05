@@ -58,7 +58,7 @@ def ollama_available() -> bool:
         return False
 
 
-def infer_seat_config(image_bytes: bytes) -> dict | None:
+def infer_seat_config(image_bytes: bytes, keep_alive: float | str = 0) -> dict | None:
     """One photo -> {"config", "confidence"} or None on any failure
     (server unreachable, model not pulled, malformed response). The model
     is asked for bare JSON but small local models occasionally wrap it in
@@ -82,8 +82,13 @@ def infer_seat_config(image_bytes: bytes) -> dict | None:
             # over this GPU's 12GB and crashed with an ONNXRuntime OOM.
             # Costs a slower cold-load on the NEXT vehicle's call instead
             # (a few extra seconds) rather than starving whatever else is
-            # using the GPU in between.
-            "keep_alive": 0,
+            # using the GPU in between. A caller doing several of these
+            # back-to-back with nothing GPU-heavy in between (see
+            # extract_seat_config's keep_alive passthrough, used by
+            # inventory_sync.py's end-of-run batch pass) can raise this to
+            # avoid paying that cold-load on every single vehicle -- still
+            # its own responsibility to unload (keep_alive=0) once done.
+            "keep_alive": keep_alive,
         }, timeout=REQUEST_TIMEOUT)
         resp.raise_for_status()
         text = resp.json().get("response", "")
@@ -130,7 +135,7 @@ def pick_front_cabin_photo(interior_dir: Path, classifier=None) -> Path | None:
     return best_path or photos[0]
 
 
-def extract_seat_config(vehicle_folder: Path, classifier=None) -> dict | None:
+def extract_seat_config(vehicle_folder: Path, classifier=None, keep_alive: float | str = 0) -> dict | None:
     """End-to-end: pick the best candidate photo from this vehicle's
     interior gallery, run it through the vision model, return the result
     plus which photo was used (for spot-checking) -- or None if there's no
@@ -145,7 +150,7 @@ def extract_seat_config(vehicle_folder: Path, classifier=None) -> dict | None:
     if photo is None or not ollama_available():
         return None
 
-    result = infer_seat_config(photo.read_bytes())
+    result = infer_seat_config(photo.read_bytes(), keep_alive=keep_alive)
     if result is None:
         return None
     result["source_photo"] = f"images/interior/{photo.name}"

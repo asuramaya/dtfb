@@ -24,7 +24,9 @@ def compute_placement(car: Image.Image, box: tuple[int, int, int, int],
 
     scale = min(avail_w / car.width, avail_h / car.height)
     new_size = (max(1, round(car.width * scale)), max(1, round(car.height * scale)))
-    car_resized = car.resize(new_size, Image.LANCZOS)
+    # reducing_gap=2.0: cheap box pre-reduction before the LANCZOS pass,
+    # same tradeoff as hero_video.py's per-frame resize -- see its comment.
+    car_resized = car.resize(new_size, Image.LANCZOS, reducing_gap=2.0)
 
     x = bl + ((br - bl) - new_size[0]) // 2
     if anchor == "bottom":

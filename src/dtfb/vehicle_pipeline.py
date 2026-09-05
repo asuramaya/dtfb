@@ -64,13 +64,23 @@ def render_vehicle_video(folder: Path, hero_opts, fmt: str = "square") -> dict |
     spec = VIDEO_FORMATS[fmt]
     from dtfb.imaging.compose import render_hero_video
     from dtfb.imaging.palette import colors_from_details, vehicle_gradient_colors
-    from dtfb.imaging.select import order_for_conveyor_start, pick_all_for_carousel
+    from dtfb.imaging.select import load_angles, order_for_conveyor_start, pick_all_for_carousel
 
     cutout_dir = folder / "images" / "exterior" / "cutout"
     carousel = pick_all_for_carousel(cutout_dir, wheel_dir=folder / "images" / "exterior" / "wheels")
     if len(carousel) < 3:
         return None
     carousel = order_for_conveyor_start(carousel, cutout_dir)
+
+    # photos.py precomputes hood_side (which way a "side" cutout's nose
+    # faces) at download time and stashes it in angles.json alongside the
+    # angle label -- reading it back here means this whole function has no
+    # CLIP/model dependency, which is what lets it run in a plain worker
+    # process (see process_vehicle()'s video_executor path) with no GPU
+    # model to load. Missing entries (older galleries scraped before this
+    # field existed) fall back to a live CLIP call inside hero_video.py.
+    hood_sides = {name: info["hood_side"] for name, info in load_angles(cutout_dir).items()
+                  if "hood_side" in info}
 
     gradient_colors = None
     if hero_opts.video_background is None:
@@ -95,6 +105,7 @@ def render_vehicle_video(folder: Path, hero_opts, fmt: str = "square") -> dict |
         glow_radius=hero_opts.glow_radius,
         glow_intensity=hero_opts.glow_intensity,
         encoder=hero_opts.video_encoder,
+        hood_sides=hood_sides,
     )
 
 
@@ -153,7 +164,8 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
                      angle_classifier=None, hero_opts: "HeroOptions | None" = None,
                      wheel_classifier=None, spare_classifier=None,
                      interior_tiebreak_classifier=None,
-                     strict_cutouts: bool = True) -> Path:
+                     strict_cutouts: bool = True,
+                     video_executor=None, pending_video_futures: list | None = None) -> Path:
     log(f"==> {url}")
     browser, page = new_page(playwright, headed)
     try:
@@ -202,35 +214,22 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
     folder.mkdir(parents=True, exist_ok=True)
     log(f"    folder: {folder}")
 
+    # Stock-render/duplicate detection (imaging/dedupe.py) now happens
+    # INSIDE download_photos(), per-photo, before the expensive CLIP+rembg
+    # work -- not as a post-hoc pass over the finished gallery -- so a
+    # cross-vehicle duplicate skips that redundant compute entirely
+    # instead of only being flagged after paying for it. out_root/
+    # own_folder enable that cache; download_photos() falls back to full
+    # processing with no reuse if either is omitted.
     photos = download_photos(session, v, folder / "images", junk_filter, classifier, upscale_cutouts, upscale_model,
                               angle_classifier, wheel_classifier, spare_classifier, interior_tiebreak_classifier,
-                              strict_cutouts)
+                              strict_cutouts, out_root=out_root, own_folder=f"{bucket}/{folder.name}")
     originals = [p for p in photos if "/cutout/" not in p and "/wheels/" not in p]
     cutouts = len([p for p in photos if "/cutout/" in p])
     wheel_cutouts = len([p for p in photos if "/wheels/" in p])
     cutout_note = f" (+{cutouts} cutout{'s' if cutouts != 1 else ''})" if cutouts else ""
     wheel_note = f" (+{wheel_cutouts} wheel shot{'s' if wheel_cutouts != 1 else ''})" if wheel_cutouts else ""
     log(f"    photos: {len(originals)}/{len(v.photo_urls)} saved{cutout_note}{wheel_note}")
-
-    # Does this vehicle's gallery duplicate one already scraped? See
-    # imaging/dedupe.py -- advisory only, and wrapped because a warning is
-    # never worth failing a scrape over.
-    try:
-        from dtfb.imaging.dedupe import find_shared_gallery, gallery_hashes, record_gallery_hashes
-
-        exterior_dir = folder / "images" / "exterior"
-        hashes = gallery_hashes(exterior_dir)
-        if hashes:
-            shared = find_shared_gallery(out_root, f"{bucket}/{folder.name}", hashes, exterior_dir)
-            for other, count in sorted(shared.items(), key=lambda kv: -kv[1]):
-                v.warnings.append(
-                    f"{count} of {len(hashes)} exterior photo(s) are the same image as "
-                    f"{other} -- these look like manufacturer stock renders rather than "
-                    "photos of this vehicle, which Facebook Marketplace prohibits."
-                )
-            record_gallery_hashes(out_root, f"{bucket}/{folder.name}", hashes)
-    except Exception as e:
-        log(f"    ! stock-render check failed: {e}")
 
     sticker_pngs = download_window_sticker(session, v, folder, sticker_dpi)
     if sticker_pngs:
@@ -332,21 +331,38 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
         if hero_opts.video:
             # Same bonus-deliverable rule as the stills: a render failure
             # (ffmpeg missing, too few cutouts) must not sink the scrape.
-            try:
-                rendered = 0
+            if video_executor is not None and pending_video_futures is not None:
+                # Async path: submit each format as a separate job on the
+                # shared worker pool and move on to the NEXT vehicle's
+                # scrape/CLIP/cutout work immediately instead of blocking
+                # here -- video rendering is pure CPU (ffmpeg + PIL, no GPU
+                # model), so it overlaps for free with the next vehicle's
+                # GPU-bound stage. inventory_sync.py drains and logs these
+                # once they resolve. video_opts is hero_opts with the
+                # (unpicklable, and unused by rendering) interior_classifier
+                # stripped -- the executor has to pickle its arguments to
+                # hand them to a worker process.
+                import dataclasses as _dc
+                video_opts = _dc.replace(hero_opts, interior_classifier=None)
                 for fmt in hero_opts.video_formats:
-                    report = render_vehicle_video(folder, hero_opts, fmt)
-                    if report is None:
-                        break
-                    rendered += 1
-                    log(f"    hero video ({fmt}): {Path(report['out_path']).name} "
-                        f"({report['duration_s']}s, {report['file_size_mb']} MB, "
-                        f"{report['n_shots']} shots)")
-                if not rendered:
-                    log("    hero video: skipped (needs 3+ exterior cutouts)")
-            except Exception as e:
-                log(f"    ! hero video failed: {e}")
-                v.warnings.append(f"Hero video failed: {e}")
+                    future = video_executor.submit(render_vehicle_video, folder, video_opts, fmt)
+                    pending_video_futures.append((folder, fmt, future))
+            else:
+                try:
+                    rendered = 0
+                    for fmt in hero_opts.video_formats:
+                        report = render_vehicle_video(folder, hero_opts, fmt)
+                        if report is None:
+                            break
+                        rendered += 1
+                        log(f"    hero video ({fmt}): {Path(report['out_path']).name} "
+                            f"({report['duration_s']}s, {report['file_size_mb']} MB, "
+                            f"{report['n_shots']} shots)")
+                    if not rendered:
+                        log("    hero video: skipped (needs 3+ exterior cutouts)")
+                except Exception as e:
+                    log(f"    ! hero video failed: {e}")
+                    v.warnings.append(f"Hero video failed: {e}")
 
     details = dataclasses.asdict(v)
     details["_facebook_post_notes"] = explain_facebook_post(v)
@@ -361,7 +377,19 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
     (bundle_dir / "threads.txt").write_text(build_threads_post(v), encoding="utf-8")
     (bundle_dir / "instagram.txt").write_text(build_instagram_caption(v), encoding="utf-8")
 
-    fetch_manifest.record_fetch(out_root, url, f"{bucket}/{folder.name}", vin=v.vin, stock_number=v.stock_number)
+    # No REAL photos survived download_photos() -- almost always a dealer
+    # placeholder graphic ("Just Arrived, Photos Coming Soon") that
+    # imaging/dedupe.py's JunkFilter correctly dropped, leaving nothing to
+    # actually photograph this vehicle with yet. Recording that as a
+    # normal complete fetch would permanently hide this vehicle from every
+    # future sync (already_fetched() would keep skipping it forever) --
+    # photos_pending instead makes the NEXT sync retry it automatically,
+    # with no separate tracking file or manual re-run needed.
+    photos_pending = len(originals) == 0
+    if photos_pending:
+        log("    ! No real photos yet (placeholder/empty gallery) -- will retry on the next sync")
+    fetch_manifest.record_fetch(out_root, url, f"{bucket}/{folder.name}", vin=v.vin, stock_number=v.stock_number,
+                                 photos_pending=photos_pending)
 
     if v.warnings:
         for w in v.warnings:
