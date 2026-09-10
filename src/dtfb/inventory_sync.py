@@ -75,13 +75,24 @@ MAX_DELIST_FRACTION = 0.3
 
 
 def load_config(args) -> dict:
-    """Load settings from —config file and/or env vars."""
+    """Load settings from —config file and/or env vars.
+
+    inventory_url precedence (highest wins): --inventory-url, DTFB_INVENTORY_URL,
+    --scope (resolved against dealer-config.json's/env's inventory_urls),
+    dealer-config.json's own bare inventory_url. There's deliberately no
+    built-in fallback URL -- unlike the cosmetic dealer_name/greeting/
+    address defaults, a wrong inventory URL means scraping a real site by
+    accident, so an unconfigured dealer gets a clear error instead of
+    silently syncing whichever dealership this tool happened to be
+    written against."""
+    import dtfb.dealer_config as dc
+
     config = {}
 
     # File
     if args.config:
-        import dtfb.dealer_config as dc
         dc.reload(args.config)
+    cfg = dc.get()
 
     # Environment overrides
     import os
@@ -93,15 +104,29 @@ def load_config(args) -> dict:
         if val:
             config[attr] = val
 
-    # CLI overrides
+    if args.scope and "inventory_url" not in config:
+        try:
+            config["inventory_url"] = dc.resolve_scope_url(cfg, args.scope)
+        except ValueError as e:
+            raise SystemExit(str(e))
+
+    if cfg.inventory_url:
+        config.setdefault("inventory_url", cfg.inventory_url)
+
+    # CLI overrides (highest precedence, including over --scope)
     if args.inventory_url:
         config["inventory_url"] = args.inventory_url
     if args.out:
         config["listings_root"] = args.out
 
-    config.setdefault("inventory_url",
-                       os.environ.get("DTFB_INVENTORY_URL",
-                                      "https://www.tomballford.com/inventory/all-vehicles/"))
+    if "inventory_url" not in config:
+        raise SystemExit(
+            "No inventory URL configured. Pass one of:\n"
+            "  --inventory-url <url>            explicit listing URL\n"
+            "  --scope <name>                   e.g. --scope used, resolved via "
+            "dealer-config.json's inventory_urls or DTFB_INVENTORY_URL_<NAME>\n"
+            "  DTFB_INVENTORY_URL=<url>         env var\n"
+            "  \"inventory_url\" in --dealer-config's JSON file")
     config.setdefault("listings_root",
                        os.environ.get("DTFB_LISTINGS_ROOT",
                                       str(Path.home() / "Documents" / "listings")))
@@ -157,6 +182,7 @@ def run_sync(config: dict, dry_run: bool = False, headed: bool = False,
     if dry_run:
         print("[dry-run] skipping live listing expansion")
         summary["listing_vehicle_count"] = 0
+        summary["duration_seconds"] = round(time.time() - start, 1)
         return summary
 
     with sync_playwright() as p:
@@ -254,9 +280,11 @@ def run_sync(config: dict, dry_run: bool = False, headed: bool = False,
                 continue
             if report is None:
                 continue
+            fallback_note = (f" [fell back to {report['encoder']}, GPU was too busy for h264_nvenc]"
+                              if report.get("encoder") != "h264_nvenc" else "")
             print(f"    hero video ({fmt}) [{folder.parent.name}/{folder.name}]: "
                   f"{Path(report['out_path']).name} ({report['duration_s']}s, "
-                  f"{report['file_size_mb']} MB, {report['n_shots']} shots)")
+                  f"{report['file_size_mb']} MB, {report['n_shots']} shots){fallback_note}")
 
     if to_fetch:
         pending_video_futures: list = []
@@ -414,6 +442,11 @@ def main():
                                       formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--config", help="Path to dealer JSON config file")
     parser.add_argument("--inventory-url", help="Override inventory listing URL")
+    parser.add_argument("--scope", help="Named inventory scope (e.g. \"used\", \"new\", \"all\") -- "
+                                         "resolved against dealer-config.json's/env's inventory_urls "
+                                         "instead of typing the dealer's actual URL every time. Scope "
+                                         "names are whatever you configure; there's no fixed set. "
+                                         "Overridden by --inventory-url if both are given.")
     parser.add_argument("--out", help="Override listings output root")
     parser.add_argument("--dry-run", action="store_true",
                          help="Scan listing and show what would happen, without fetching")

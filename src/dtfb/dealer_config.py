@@ -57,6 +57,20 @@ class DealerConfig:
     dealer_domain: Optional[str] = None
     inventory_url: Optional[str] = None
 
+    # Named inventory scopes (e.g. "used" / "new" / "all", but the names
+    # are whatever the dealer's own site uses -- there's no fixed set).
+    # Lets `--scope used` stand in for the dealer's actual used-inventory
+    # URL without every user of this tool having to remember or retype
+    # it. Deliberately EMPTY by default, unlike this class's other
+    # Tomball-originals defaults -- these values become live HTTP
+    # requests, so silently inheriting a *different* dealer's real
+    # inventory URL would mean scraping the wrong site by accident, not
+    # just a wrong caption. A user must set these themselves (config file
+    # or DTFB_INVENTORY_URL_<SCOPE> env vars, see load()) before `--scope`
+    # does anything; resolve_scope_url() below refuses loudly if it's not
+    # configured rather than guessing.
+    inventory_urls: dict[str, str] = field(default_factory=dict)
+
     # -- Recraft API key (AI background generation) -------------------------
     recraft_api_key: Optional[str] = None
 
@@ -100,6 +114,8 @@ def load(path: str | Path | None = None) -> DealerConfig:
             cfg.city_tags = raw["city_tags"]
         if raw.get("manufacturer_links"):
             cfg.manufacturer_links.update(raw["manufacturer_links"])
+        if raw.get("inventory_urls"):
+            cfg.inventory_urls.update(raw["inventory_urls"])
 
     # Layer 2: env vars
     for env_key, attr in [
@@ -115,7 +131,35 @@ def load(path: str | Path | None = None) -> DealerConfig:
         if val is not None:
             setattr(cfg, attr, val)
 
+    # DTFB_INVENTORY_URL_<SCOPE> -- scanned rather than a fixed list since
+    # scope names are open-ended (whatever a dealer's own site calls its
+    # inventory sections, not just "used"/"new"/"all"). Wins over the same
+    # scope's config-file entry, matching every other env-over-file field
+    # above.
+    prefix = "DTFB_INVENTORY_URL_"
+    for env_key, val in os.environ.items():
+        if env_key.startswith(prefix) and val:
+            cfg.inventory_urls[env_key[len(prefix):].lower()] = val
+
     return cfg
+
+
+def resolve_scope_url(cfg: DealerConfig, scope: str) -> str:
+    """The URL for a named inventory scope (e.g. "used"), or a refusal
+    that names what's actually configured -- never a guess. Scope names
+    and their URLs are entirely dealer-defined (see inventory_urls'
+    docstring); this only ever reads what a user configured."""
+    url = cfg.inventory_urls.get(scope)
+    if url:
+        return url
+    if cfg.inventory_urls:
+        available = ", ".join(sorted(cfg.inventory_urls))
+        raise ValueError(f"no inventory URL configured for scope {scope!r} -- configured scopes: {available} "
+                          f"(dealer-config.json's inventory_urls, or DTFB_INVENTORY_URL_{scope.upper()})")
+    raise ValueError(f"no inventory scopes configured at all -- add an \"inventory_urls\" object to your "
+                      f"dealer-config.json (e.g. {{\"used\": \"https://yourdealer.com/inventory/used/\"}}) "
+                      f"or set DTFB_INVENTORY_URL_{scope.upper()}, or just pass the URL directly with "
+                      f"--inventory-url")
 
 
 # Module-level convenience — import and use directly when no custom path is

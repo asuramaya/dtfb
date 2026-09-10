@@ -116,9 +116,16 @@ Create a `dealer-config.json` file for your dealership:
   "dealer_address": "4500 Motorway Blvd, Austin, TX 78701",
   "city_tags": ["Austin", "AustinCars", "ATXAuto", "TexasTrucks"],
   "default_border_tag": "dealer-frame",
-  "inventory_url": "https://www.apexfordaustin.com/inventory/all-vehicles/"
+  "inventory_url": "https://www.apexfordaustin.com/inventory/all-vehicles/",
+  "inventory_urls": {
+    "used": "https://www.apexfordaustin.com/inventory/used-vehicles/",
+    "new": "https://www.apexfordaustin.com/inventory/new-vehicles/",
+    "all": "https://www.apexfordaustin.com/inventory/all-vehicles/"
+  }
 }
 ```
+
+`inventory_urls` is what `inventory-sync --scope <name>` reads, so you can run `inventory-sync --scope used` instead of retyping your dealer's full URL every time. Scope names are entirely up to you -- they're just keys in this object, not a fixed set dtfb understands. There's deliberately no built-in default for these (unlike `dealer_name`/`dealer_greeting`/etc): an unconfigured `--scope` fails loudly rather than silently pointing at whichever dealership this tool happened to ship with example values for.
 
 Pass it on any command with `--dealer-config` or by setting the `DTFB_CONFIG` environment variable:
 
@@ -139,6 +146,7 @@ You can also configure dtfb directly using environment variables (ideal for Dock
 | `DTFB_CITY_TAGS` | Comma-separated hashtags for social copy | `Tomball,TomballCars,Houston,HoustonCars` |
 | `DTFB_DEFAULT_BORDER_TAG`| Default border tag from `assets/manifest.json` | `tomball-dealer-frame` |
 | `DTFB_INVENTORY_URL` | Full inventory search URL for batch crawling | `None` |
+| `DTFB_INVENTORY_URL_<SCOPE>` | Per-scope inventory URL, e.g. `DTFB_INVENTORY_URL_USED` for `--scope used` | `None` |
 | `DTFB_LISTINGS_ROOT` | Default output directory for listings | `./listings` or current directory |
 
 See `.env.example` and `dtfb-config.json.example` for template files.
@@ -202,6 +210,11 @@ inventory-sync --inventory-url "https://www.yourdealer.com/inventory/all-vehicle
 # gemma4:e2b pulled) -- batched at the end of the run so the model loads once,
 # not once per vehicle
 inventory-sync --inventory-url "..." --out ~/Documents/listings --vision-seat-check
+
+# Once your dealer-config.json has an "inventory_urls" map (see Configuration
+# above), skip retyping the URL entirely:
+inventory-sync --scope used
+inventory-sync --scope new
 ```
 
 **Safety valves**: a sync refuses to flag anything as delisted if the listing crawl came back incomplete (`--headed` to debug why), or if more than 30% of previously-seen active inventory would suddenly be flagged missing in one cycle (almost always a bad/narrow crawl, not real turnover). Pass `--confirm-mass-delist` to override either one if you're sure it's genuine.
@@ -316,9 +329,11 @@ register_extractor("custom_cms", CUSTOM_CMS_MARKER, custom_cms_validator)
 - **Solution**: Run `playwright install chromium` inside your virtual environment. If running on headless Linux, also install OS dependencies with `playwright install-deps chromium`.
 
 ### 3. PyTorch / CUDA Out Of Memory (OOM)
-- **Symptom**: `torch.cuda.OutOfMemoryError: CUDA out of memory`.
+- **Symptom**: `torch.cuda.OutOfMemoryError: CUDA out of memory`, or (specifically for hero videos) `h264_nvenc`'s `CreateInputBuffer failed: out of memory`.
+- **Cause**: `dtfb` clears GPU cache between vehicles for the classification/cutout models, but `inventory-sync`'s batch pipeline deliberately overlaps a vehicle's hero-video rendering (parallel worker processes, each doing GPU-accelerated compositing plus an `h264_nvenc` encode) with the *next* vehicle's CLIP/rembg work on the main process — real concurrent GPU pressure, not a leak. On a smaller card (the reference numbers above assume 8+ GB) several concurrent encode sessions plus the classification models in memory at once can genuinely exceed what's free.
 - **Solution**:
-  - `dtfb` processes photos sequentially and clears GPU cache between vehicle runs.
+  - Hero-video rendering already self-heals for this specific case: if `h264_nvenc` fails to open, `render_hero_video()` automatically retries the same video with the software `libx264` encoder rather than losing it — you'll see `[fell back to libx264, GPU was too busy for h264_nvenc]` in the sync log. No video is lost, it's just slower under load.
+  - If OOM shows up elsewhere (classification/cutout, not video encoding), or the fallback itself is triggering constantly and slowing your syncs more than you'd like, lower `VIDEO_WORKERS`/`MAX_INFLIGHT_VEHICLES` in `inventory_sync.py`, or drop `--nvenc`/`video_encoder="h264_nvenc"` entirely to encode on CPU only.
   - If you have limited VRAM (< 4 GB), set `export CUDA_VISIBLE_DEVICES=""` to force CPU execution mode.
 
 ### 4. Missing FFmpeg Error
