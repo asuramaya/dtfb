@@ -261,20 +261,17 @@ hero-video ~/Documents/listings/used/2023-Ford-F-150-Raptor-PFA30435/
 
 ## Daily Automation (Cron)
 
-Use the included `daily_sync.sh` script to run automated daily inventory synchronizations:
+The included `daily_sync.sh` wraps `inventory-sync` for unattended cron use: starts Ollama if configured
+(for `--vision-seat-check`), writes a timestamped log per run, and prunes logs older than 30 days.
+Configure it entirely via environment variables (defaults shown, all optional):
 
 ```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-export DTFB_CONFIG="/path/to/dealer-config.json"
-export DTFB_INVENTORY_URL="https://www.yourdealer.com/inventory/all-vehicles/"
+export DTFB_REPO_DIR="/path/to/dtfb"                      # default: this deployment's checkout
+export DTFB_SCOPE="used"                                  # a name from dealer-config.json's inventory_urls
+# ...or set DTFB_INVENTORY_URL directly to skip scope resolution entirely
 export DTFB_LISTINGS_ROOT="/path/to/listings"
-
-cd /path/to/dtfb
-source .venv/bin/activate
-
-inventory-sync
+export DTFB_CONFIG="/path/to/dealer-config.json"           # dealer_name/greeting/inventory_urls/etc
+export DTFB_LOG_DIR="/path/to/sync-logs"                   # default: ~/.local/sync-logs
 ```
 
 Add a cron job (`crontab -e`) to run daily at 6:00 AM:
@@ -282,6 +279,9 @@ Add a cron job (`crontab -e`) to run daily at 6:00 AM:
 ```cron
 0 6 * * * /path/to/dtfb/daily_sync.sh >> /var/log/dtfb-sync.log 2>&1
 ```
+
+(`daily_sync.sh` writes its own per-run log under `DTFB_LOG_DIR` regardless -- the redirect above just
+catches anything printed before that log file exists, e.g. a missing `.venv`.)
 
 ---
 
