@@ -175,7 +175,27 @@ def evaluate_photo(content: bytes, classifier: SceneClassifier,
     c = classifier.classify(content)
 
     if c.label == DETAIL_LABEL:
-        # A real exterior photo, just not a cutout candidate.
+        # A real exterior photo, just not a cutout candidate -- USUALLY.
+        # Known gap (found auditing images/interior/ fleet-wide for lost
+        # hero angles, 2026-09): DETAIL_LABEL's prompt ("a close-up photo
+        # of a single small car part") doesn't distinguish an exterior
+        # detail (headlight, mirror) from an interior one (a door handle,
+        # a console button) -- confirmed one real case, a door-handle/
+        # lock-switch close-up scoring detail(0.987). The interior/
+        # exterior tiebreak classifier below does NOT rescue this: run on
+        # the same photo it confidently (0.77) calls it exterior_body too
+        # -- INTERIOR_EXTERIOR_TIEBREAK_LABELS is prompted for whole-cabin
+        # framing ("dashboard, seats, steering wheel, console"), which a
+        # tight interior-hardware crop doesn't match either. cutout_
+        # eligible=False means this doesn't reach hero compositing (no
+        # cutout is ever generated), so the practical cost is a misfiled
+        # raw photo, not a broken deliverable. NOT fixed here: one
+        # instance in the whole fleet-wide audit is not enough evidence to
+        # safely reword a prompt against -- this codebase's own repeated
+        # lesson (see ANGLE_LABELS' van case, the informative-prompts
+        # experiment above) is that a narrow fix built on a small sample
+        # tends to create an invisible new sink elsewhere. Revisit if more
+        # real cases turn up.
         return PhotoVerdict("exterior", False, c.label, c.confidence, rembg_checked=False)
 
     if c.label == INTERIOR_LABEL:
