@@ -803,120 +803,154 @@ def render_hero_video(background_video: Path | None, border_path: Path | None, c
     out_path.parent.mkdir(parents=True, exist_ok=True)
     log_path = out_path.with_suffix(".ffmpeg.log")
 
-    cmd = [
-        "ffmpeg", "-y",
-        "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{canvas_size[0]}x{canvas_size[1]}",
-        "-r", str(fps), "-i", "pipe:0",
-    ]
-    if audio_path is not None:
-        cmd += ["-stream_loop", "-1", "-i", str(audio_path), "-map", "0:v", "-map", "1:a"]
-    cmd += [
-        "-c:v", encoder, "-preset", "medium", "-b:v", f"{bitrate_kbps}k",
-        "-maxrate", f"{int(bitrate_kbps * 1.2)}k", "-bufsize", f"{int(bitrate_kbps * 2)}k",
-        "-pix_fmt", "yuv420p",
-    ]
-    if audio_path is not None:
-        cmd += ["-c:a", "aac", "-b:a", f"{AUDIO_BITRATE_KBPS}k"]
-    cmd += ["-t", f"{total_seconds:.3f}", str(out_path)]
+    def _run_encode(enc: str) -> None:
+        """Streams every frame to one ffmpeg process using encoder `enc`.
+        Raises RuntimeError if ffmpeg exits nonzero -- including a hardware
+        encoder (h264_nvenc) that failed to even open (GPU out of memory,
+        or the driver's concurrent-session cap), which otherwise surfaces
+        first as a BrokenPipeError on some later stdin.write() once ffmpeg
+        has already given up and exited. That write-time symptom is caught
+        here and folded into the same "ffmpeg exited nonzero" path so the
+        caller only has one failure mode to handle."""
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{canvas_size[0]}x{canvas_size[1]}",
+            "-r", str(fps), "-i", "pipe:0",
+        ]
+        if audio_path is not None:
+            cmd += ["-stream_loop", "-1", "-i", str(audio_path), "-map", "0:v", "-map", "1:a"]
+        cmd += [
+            "-c:v", enc, "-preset", "medium", "-b:v", f"{bitrate_kbps}k",
+            "-maxrate", f"{int(bitrate_kbps * 1.2)}k", "-bufsize", f"{int(bitrate_kbps * 2)}k",
+            "-pix_fmt", "yuv420p",
+        ]
+        if audio_path is not None:
+            cmd += ["-c:a", "aac", "-b:a", f"{AUDIO_BITRATE_KBPS}k"]
+        cmd += ["-t", f"{total_seconds:.3f}", str(out_path)]
 
-    accent_layer_cache: dict = {}
+        accent_layer_cache: dict = {}
 
-    with open(log_path, "w") as logf:
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=logf)
-        try:
-            for f in range(total_frames):
-                t = f / fps
-                pos = t % carousel_period
-                idx, slot_start, slot_duration = _slot_at(pos, schedule)
-                within = pos - slot_start
-                hold = slot_duration - transition_s
-                hero = shots[idx]
-                if bg_frames is not None:
-                    bg_frame = bg_frames[f % len(bg_frames)]
-                else:
-                    # Rotating rather than looping: a generated backdrop has
-                    # no seam to hide, so it can just keep turning.
-                    bg_frame = make_linear_gradient(
-                        canvas_size,
-                        gradient_colors[0] + GRADIENT_TURNS * 360.0 * (f / max(1, total_frames)),
-                        gradient_colors[1], gradient_colors[2])
+        with open(log_path, "w") as logf:
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=logf)
+            try:
+                for f in range(total_frames):
+                    t = f / fps
+                    pos = t % carousel_period
+                    idx, slot_start, slot_duration = _slot_at(pos, schedule)
+                    within = pos - slot_start
+                    hold = slot_duration - transition_s
+                    hero = shots[idx]
+                    if bg_frames is not None:
+                        bg_frame = bg_frames[f % len(bg_frames)]
+                    else:
+                        # Rotating rather than looping: a generated backdrop has
+                        # no seam to hide, so it can just keep turning.
+                        bg_frame = make_linear_gradient(
+                            canvas_size,
+                            gradient_colors[0] + GRADIENT_TURNS * 360.0 * (f / max(1, total_frames)),
+                            gradient_colors[1], gradient_colors[2])
+    
+                    # bg_frame is already RGB; letting apply_spotlight convert
+                    # in and back out cost two full-canvas conversions a frame.
+                    canvas = apply_spotlight(bg_frame, hero.center, hero.dim_strength).convert("RGBA")
+    
+                    if within < hold:
+                        # Steady: left=shots[idx-1], hero=shots[idx] (panning
+                        # and/or pulsing), right=shots[idx+1].
+                        #
+                        # The two accents are motionless for the whole bar, but
+                        # were being re-resized (LANCZOS) and re-blurred (glow)
+                        # every frame to produce an identical layer. Cache it
+                        # per neighbour pair -- at most `n` distinct layers for
+                        # a whole video. Only the hero still needs live work,
+                        # since it pans and pulses.
+                        left_i, right_i = (idx - 1) % n, (idx + 1) % n
+                        base = accent_layer_cache.get((left_i, right_i))
+                        if base is None:
+                            base = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+                            lb, rb = shots[left_i], shots[right_i]
+                            _render(base, lb, lb.left_rect, 1.0, glow, glow_color, glow_radius, glow_intensity)
+                            _render(base, rb, rb.right_rect, 1.0, glow, glow_color, glow_radius, glow_intensity)
+                            accent_layer_cache[(left_i, right_i)] = base
+                        layer = base.copy()
+    
+                        draw = _hero_state(hero, within / hold if hold > 0 else 1.0)
+                        pulse = _pulse_scale(t, beat_s)
+                        if pulse != 1.0:
+                            # Pulse about the FRAME's center, not the drawn
+                            # image's own center: a panning image is mostly
+                            # off-frame, so scaling about its own center would
+                            # swing the visible part sideways instead of
+                            # zooming what the viewer is actually looking at.
+                            pivot = (hero.hero_rect[0] + hero.hero_rect[2] / 2,
+                                     hero.hero_rect[1] + hero.hero_rect[3] / 2)
+                            draw = _scaled_about(draw, pivot, pulse)
+                        _render(layer, hero, draw, 1.0, glow, glow_color, glow_radius, glow_intensity)
+                    else:
+                        layer = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+                        # Transition: A(idx) hero->left, B(idx-1) left fades out,
+                        # C(idx+1) right->hero, D(idx+2) fades in at right.
+                        #
+                        # A and C interpolate from the exact state steady
+                        # playback left off at (pan progress 1) to the exact
+                        # state it will resume at (pan progress 0), so a pan
+                        # shot's hand-off is continuous by construction -- no
+                        # cut, no dissolve, no pop. The vehicle stays whole
+                        # throughout; it shrinks toward the accent slot rather
+                        # than being progressively cut down to it.
+                        tau = min(1.0, (within - hold) / transition_s)
+                        ease = _ease_out(tau)
+                        prev_i, next_i, next2_i = (idx - 1) % n, (idx + 1) % n, (idx + 2) % n
+                        a, b, c, d = shots[idx], shots[prev_i], shots[next_i], shots[next2_i]
+    
+                        _render(layer, b, b.left_rect, 1.0 - tau, glow, glow_color, glow_radius, glow_intensity)
+                        _render(layer, d, d.right_rect, tau, glow, glow_color, glow_radius, glow_intensity)
+    
+                        _render(layer, a, _lerp_rect(_hero_state(a, 1.0), a.left_rect, ease), 1.0,
+                                glow, glow_color, glow_radius, glow_intensity)
+                        _render(layer, c, _lerp_rect(c.right_rect, _hero_state(c, 0.0), ease), 1.0,
+                                glow, glow_color, glow_radius, glow_intensity)
+    
+                    canvas.alpha_composite(layer)
+                    if border is not None:
+                        canvas.alpha_composite(border)
+                    try:
+                        proc.stdin.write(canvas.convert("RGB").tobytes())
+                    except BrokenPipeError:
+                        # ffmpeg already exited (most often the encoder failed
+                        # to open) -- stop feeding it, the exit-code check
+                        # below is what actually reports the failure.
+                        break
+            finally:
+                proc.stdin.close()
+                ret = proc.wait()
+                _gpu_source_cache.clear()
 
-                # bg_frame is already RGB; letting apply_spotlight convert
-                # in and back out cost two full-canvas conversions a frame.
-                canvas = apply_spotlight(bg_frame, hero.center, hero.dim_strength).convert("RGBA")
+        if ret != 0:
+            raise RuntimeError(f"ffmpeg failed (exit {ret}) -- see {log_path}")
 
-                if within < hold:
-                    # Steady: left=shots[idx-1], hero=shots[idx] (panning
-                    # and/or pulsing), right=shots[idx+1].
-                    #
-                    # The two accents are motionless for the whole bar, but
-                    # were being re-resized (LANCZOS) and re-blurred (glow)
-                    # every frame to produce an identical layer. Cache it
-                    # per neighbour pair -- at most `n` distinct layers for
-                    # a whole video. Only the hero still needs live work,
-                    # since it pans and pulses.
-                    left_i, right_i = (idx - 1) % n, (idx + 1) % n
-                    base = accent_layer_cache.get((left_i, right_i))
-                    if base is None:
-                        base = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
-                        lb, rb = shots[left_i], shots[right_i]
-                        _render(base, lb, lb.left_rect, 1.0, glow, glow_color, glow_radius, glow_intensity)
-                        _render(base, rb, rb.right_rect, 1.0, glow, glow_color, glow_radius, glow_intensity)
-                        accent_layer_cache[(left_i, right_i)] = base
-                    layer = base.copy()
+    # h264_nvenc shares this machine's single GPU with CLIP/rembg (running
+    # concurrently on other vehicles/workers) and with every other video
+    # worker's own encoder session -- under real load it can fail to open
+    # at all (CUDA out of memory) rather than degrade gracefully. Losing an
+    # entire hero video to transient GPU pressure is worse than a slower
+    # software encode, so fall back to libx264 once rather than surface
+    # the failure -- this is what actually guarantees a video comes out of
+    # every call, independent of how busy the GPU is when it runs.
+    enc_used = encoder
+    try:
+        _run_encode(encoder)
+    except RuntimeError:
+        if encoder == "libx264":
+            raise
+        enc_used = "libx264"
+        _run_encode("libx264")
 
-                    draw = _hero_state(hero, within / hold if hold > 0 else 1.0)
-                    pulse = _pulse_scale(t, beat_s)
-                    if pulse != 1.0:
-                        # Pulse about the FRAME's center, not the drawn
-                        # image's own center: a panning image is mostly
-                        # off-frame, so scaling about its own center would
-                        # swing the visible part sideways instead of
-                        # zooming what the viewer is actually looking at.
-                        pivot = (hero.hero_rect[0] + hero.hero_rect[2] / 2,
-                                 hero.hero_rect[1] + hero.hero_rect[3] / 2)
-                        draw = _scaled_about(draw, pivot, pulse)
-                    _render(layer, hero, draw, 1.0, glow, glow_color, glow_radius, glow_intensity)
-                else:
-                    layer = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
-                    # Transition: A(idx) hero->left, B(idx-1) left fades out,
-                    # C(idx+1) right->hero, D(idx+2) fades in at right.
-                    #
-                    # A and C interpolate from the exact state steady
-                    # playback left off at (pan progress 1) to the exact
-                    # state it will resume at (pan progress 0), so a pan
-                    # shot's hand-off is continuous by construction -- no
-                    # cut, no dissolve, no pop. The vehicle stays whole
-                    # throughout; it shrinks toward the accent slot rather
-                    # than being progressively cut down to it.
-                    tau = min(1.0, (within - hold) / transition_s)
-                    ease = _ease_out(tau)
-                    prev_i, next_i, next2_i = (idx - 1) % n, (idx + 1) % n, (idx + 2) % n
-                    a, b, c, d = shots[idx], shots[prev_i], shots[next_i], shots[next2_i]
-
-                    _render(layer, b, b.left_rect, 1.0 - tau, glow, glow_color, glow_radius, glow_intensity)
-                    _render(layer, d, d.right_rect, tau, glow, glow_color, glow_radius, glow_intensity)
-
-                    _render(layer, a, _lerp_rect(_hero_state(a, 1.0), a.left_rect, ease), 1.0,
-                            glow, glow_color, glow_radius, glow_intensity)
-                    _render(layer, c, _lerp_rect(c.right_rect, _hero_state(c, 0.0), ease), 1.0,
-                            glow, glow_color, glow_radius, glow_intensity)
-
-                canvas.alpha_composite(layer)
-                if border is not None:
-                    canvas.alpha_composite(border)
-                proc.stdin.write(canvas.convert("RGB").tobytes())
-        finally:
-            proc.stdin.close()
-            ret = proc.wait()
-            _gpu_source_cache.clear()
-
-    if ret != 0:
-        raise RuntimeError(f"ffmpeg failed (exit {ret}) -- see {log_path}")
     log_path.unlink(missing_ok=True)
 
     return {
         "out_path": str(out_path),
+        "encoder": enc_used,
         "duration_s": round(total_seconds, 2),
         "fps": fps,
         "total_frames": total_frames,

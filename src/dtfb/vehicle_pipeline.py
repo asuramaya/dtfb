@@ -335,10 +335,15 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
                 # Async path: submit each format as a separate job on the
                 # shared worker pool and move on to the NEXT vehicle's
                 # scrape/CLIP/cutout work immediately instead of blocking
-                # here -- video rendering is pure CPU (ffmpeg + PIL, no GPU
-                # model), so it overlaps for free with the next vehicle's
-                # GPU-bound stage. inventory_sync.py drains and logs these
-                # once they resolve. video_opts is hero_opts with the
+                # here. NOTE this is no longer the GPU-free overlap it once
+                # was: hero_video.py's Tier-3 compositing and inventory_
+                # sync.py's h264_nvenc both use the GPU now, so this DOES
+                # compete with the next vehicle's CLIP/rembg for VRAM --
+                # render_hero_video() falls back to libx264 automatically
+                # if the GPU is too busy for nvenc, which is what actually
+                # guarantees a video comes out rather than a silent skip.
+                # inventory_sync.py drains and logs these once they
+                # resolve. video_opts is hero_opts with the
                 # (unpicklable, and unused by rendering) interior_classifier
                 # stripped -- the executor has to pickle its arguments to
                 # hand them to a worker process.
@@ -355,9 +360,12 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
                         if report is None:
                             break
                         rendered += 1
+                        fallback_note = (f" [fell back to {report['encoder']}, GPU was too busy for h264_nvenc]"
+                                          if report.get("encoder") == "libx264"
+                                          and hero_opts.video_encoder != "libx264" else "")
                         log(f"    hero video ({fmt}): {Path(report['out_path']).name} "
                             f"({report['duration_s']}s, {report['file_size_mb']} MB, "
-                            f"{report['n_shots']} shots)")
+                            f"{report['n_shots']} shots){fallback_note}")
                     if not rendered:
                         log("    hero video: skipped (needs 3+ exterior cutouts)")
                 except Exception as e:
