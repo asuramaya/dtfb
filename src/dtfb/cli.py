@@ -9,6 +9,7 @@ Usage:
     dtfb <vdp-url> --out listings
     dtfb <filtered-inventory-listing-url>       # expands to every vehicle it lists
     dtfb <listing-url> --dry-run                # preview what it would expand to, without fetching
+    dtfb <local-photo-folder> [<local-photo-folder> ...]  # no VDP at all -- see local_source.py
 
 This file is just the CLI surface -- argument parsing and the batch loop.
 The actual work is split across:
@@ -72,8 +73,9 @@ from dtfb.imaging.classify import (
 from dtfb.imaging.interior import InteriorSubjectClassifier
 from dtfb.imaging.dedupe import DEFAULT_TEMPLATES_DIR, JunkFilter
 from dtfb.listing import expand_listing_url, is_vdp_url
+from dtfb.local_source import is_local_source, load_local_vehicle, local_vehicle_key
 from dtfb.scrape import USER_AGENT, vin_from_url
-from dtfb.vehicle_pipeline import HeroOptions, log, process_vehicle
+from dtfb.vehicle_pipeline import HeroOptions, log, process_vehicle, process_vehicle_record
 
 
 def expand_urls(raw_urls: list[str], headed: bool) -> tuple[list[str], list[str]]:
@@ -348,16 +350,26 @@ def main():
             if line.strip() and not line.strip().startswith("#")
         )
     if not raw_urls:
-        parser.error("Provide at least one vehicle or listing URL (or --file).")
+        parser.error("Provide at least one vehicle or listing URL, local photo folder (or --file).")
 
-    urls, listing_derived_urls, listing_complete = expand_urls(raw_urls, args.headed)
-    if not urls:
-        parser.error("No vehicle URLs found (a listing URL expanded to nothing, or none were provided).")
+    # A local photo folder (dtfb <folder>, see local_source.py) never goes
+    # through the scraper/listing-expander at all -- split it off up
+    # front so expand_urls() (which assumes everything left is a URL to
+    # fetch) never sees it.
+    local_dirs = [a for a in raw_urls if is_local_source(a)]
+    remote_args = [a for a in raw_urls if a not in local_dirs]
+
+    urls, listing_derived_urls, listing_complete = (
+        expand_urls(remote_args, args.headed) if remote_args else ([], [], True)
+    )
+    if not urls and not local_dirs:
+        parser.error("No vehicle URLs or local photo folders found (a listing URL expanded to "
+                      "nothing, or none were provided).")
 
     if args.sync and not listing_derived_urls:
         parser.error("--sync needs at least one listing/inventory URL (not just individual vehicle "
-                      "URLs) -- it works by comparing a full listing crawl against what's already "
-                      "been scraped.")
+                      "URLs or local folders) -- it works by comparing a full listing crawl against "
+                      "what's already been scraped.")
 
     if args.sync and not listing_complete and not args.confirm_mass_delist:
         parser.error("--sync's listing crawl was interrupted partway through (see the '(PARTIAL crawl)' "
@@ -370,6 +382,10 @@ def main():
         print(f"{len(urls)} vehicle URL(s):")
         for u in urls:
             print(f"  {u}")
+        if local_dirs:
+            print(f"{len(local_dirs)} local photo folder(s):")
+            for d in local_dirs:
+                print(f"  {d}")
         return
 
     out_root = Path(args.out)
@@ -468,6 +484,35 @@ def main():
                     log(f"    !! FAILED: {e}")
                     results.append({"url": url, "status": "failed", "error": str(e), "_run_at": run_at})
 
+    # Local photo folders skip the scraper entirely -- no browser, no VDP
+    # fetch, just load_local_vehicle() + the same process_vehicle_record()
+    # tail every scraped vehicle goes through. Keyed in the manifest by
+    # local_vehicle_key() (the resolved folder path) rather than a URL, so
+    # --force/already-fetched skip logic works identically to the scraped
+    # path -- re-running against the same folder without --force is a
+    # no-op, same as re-running a VDP URL.
+    for d in local_dirs:
+        key = local_vehicle_key(d)
+        already = None if args.force else fetch_manifest.already_fetched(out_root, key)
+        if already:
+            log(f"==> {d}\n    already fetched {already['fetched_at']} -> "
+                f"{already['folder']} (--force to re-fetch)")
+            results.append({"url": key, "status": "skipped", "folder": already["folder"],
+                             "vin": already.get("vin"), "_run_at": run_at})
+            continue
+        log(f"==> {d}")
+        try:
+            v = load_local_vehicle(Path(d))
+            folder = process_vehicle_record(v, key, session, out_root, args.sticker_dpi, junk_filter,
+                                             classifier, args.upscale, args.upscale_model, angle_classifier,
+                                             hero_opts, wheel_classifier, spare_classifier,
+                                             interior_tiebreak_classifier, not args.no_strict_cutouts)
+            results.append({"url": key, "status": "success", "folder": folder.name,
+                             "_run_at": run_at, **_read_summary_fields(folder)})
+        except Exception as e:
+            log(f"    !! FAILED: {e}")
+            results.append({"url": key, "status": "failed", "error": str(e), "_run_at": run_at})
+
     summary_path = write_batch_summary(out_root, results)
     append_run_log(out_root, results)
 
@@ -475,7 +520,7 @@ def main():
     skipped = [r for r in results if r["status"] == "skipped"]
     succeeded = [r for r in results if r["status"] == "success"]
     log("")
-    log(f"Done: {len(succeeded)}/{len(urls)} succeeded"
+    log(f"Done: {len(succeeded)}/{len(urls) + len(local_dirs)} succeeded"
         f"{f', {len(skipped)} already fetched (skipped)' if skipped else ''}, output in {out_root.resolve()}")
     log(f"Run summary: {summary_path}")
 

@@ -209,6 +209,29 @@ def process_vehicle(playwright, session: requests.Session, url: str, out_root: P
             "or a mistyped VIN."
         )
 
+    return process_vehicle_record(v, url, session, out_root, sticker_dpi, junk_filter, classifier,
+                                   upscale_cutouts, upscale_model, angle_classifier, hero_opts,
+                                   wheel_classifier, spare_classifier, interior_tiebreak_classifier,
+                                   strict_cutouts, video_executor, pending_video_futures)
+
+
+def process_vehicle_record(v, url: str, session: requests.Session, out_root: Path,
+                            sticker_dpi: int, junk_filter, classifier,
+                            upscale_cutouts: bool, upscale_model: str,
+                            angle_classifier=None, hero_opts: "HeroOptions | None" = None,
+                            wheel_classifier=None, spare_classifier=None,
+                            interior_tiebreak_classifier=None,
+                            strict_cutouts: bool = True,
+                            video_executor=None, pending_video_futures: list | None = None) -> Path:
+    """Everything downstream of "we already have a Vehicle record": gallery
+    download/CV/cutouts, window sticker (a no-op if v.window_sticker_url is
+    unset -- see download_window_sticker), hero/video/interior composition,
+    post copy, manifest/details.json. process_vehicle() is this preceded by
+    a Playwright scrape; local_source.py's local-folder ingestion path
+    (`dtfb --local`) is this preceded by reading photos off disk instead --
+    same pipeline either way, only how `v` and its photo_urls got built
+    differs. `url` is only used as this vehicle's folder-bucketing/manifest
+    key, e.g. `local://<folder-name>` for a local source, not fetched."""
     bucket = condition_bucket(v, url)
     folder = out_root / bucket / vehicle_folder_name(v)
     folder.mkdir(parents=True, exist_ok=True)

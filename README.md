@@ -3,7 +3,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Interface: CLI](https://img.shields.io/badge/interface-CLI-informational.svg)](#cli-command-reference)
-[![Tests](https://img.shields.io/badge/tests-69%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-80%20passed-brightgreen.svg)](tests/)
 
 **dtfb** ("Dealer to Facebook") automates the workflow of turning a vehicle listing from a dealership website
 into polished, platform-specific social-media posts and high-converting marketing visuals.
@@ -224,6 +224,23 @@ dtfb "https://www.yourdealer.com/inventory/all-vehicles/" --dry-run
 
 # Run full inventory sync (processes new vehicles and flags delisted ones)
 dtfb "https://www.yourdealer.com/inventory/all-vehicles/" --out ~/Documents/listings --sync
+```
+
+**No VDP at all?** `dtfb` also accepts local photo folders in place of a URL -- a trade-in walked
+around with a phone, an auction photo dump, a DAM export, anything with no dealership webpage to
+scrape. Drop photos in a folder, optionally add a `vehicle.json` with whatever `Vehicle` fields
+you know (year/make/model/price/description/... -- see `src/dtfb/local_source.py`), and it runs
+through the exact same CLIP/cutout/compose/copy pipeline as a scraped vehicle. Mix local folders
+and URLs freely in the same command; each is auto-detected by whether the argument is an existing
+directory.
+
+```bash
+# my-trade-in/01.jpg, 02.jpg, ... + an optional vehicle.json
+dtfb ./my-trade-in --out ~/Documents/listings
+
+# vehicle.json is optional -- without one you still get hero/video/cutouts,
+# just thinner post copy (no year/make/model to write sentences about)
+echo '{"year": "2023", "make": "Ford", "model": "F-150", "trim": "Raptor"}' > ./my-trade-in/vehicle.json
 ```
 
 ### 2. `inventory-sync` — Automated Inventory Synchronizer
@@ -486,6 +503,7 @@ src/dtfb/            — Core package
   │   ├── store.py   — SQLite-backed vehicle/submission registry
   │   └── processing.py — Shared fetch->classify->cutout->composite pipeline
   ├── scrape.py      — Playwright scraper & pluggable CMS extraction registry
+  ├── local_source.py — Non-scrape entry point: local photo folder -> Vehicle
   ├── listing.py     — Inventory search page crawler (VDP link discovery)
   ├── photos.py      — Photo gallery downloader and batch pipeline
   ├── window_sticker.py — Monroney window sticker PDF downloader and parser

@@ -146,6 +146,18 @@ def download_photos(session: requests.Session, v: Vehicle, images_dir: Path,
     # (ext_i/int_i) depends on it -- only the fetch itself is concurrent,
     # everything after stays sequential exactly as before.
     def _fetch(url: str):
+        # A local-source Vehicle (see local_source.py -- `dtfb --local`)
+        # puts real filesystem paths in photo_urls instead of HTTP URLs, so
+        # the rest of the pipeline (junk filter, CLIP, cutout, compose)
+        # never has to know or care where a photo came from. file:// is
+        # also accepted for symmetry with how tools generally spell "this
+        # is a local path" in a URL-shaped field.
+        local_path = url[len("file://"):] if url.startswith("file://") else url
+        if Path(local_path).is_file():
+            try:
+                return url, Path(local_path).read_bytes(), None
+            except OSError as e:
+                return url, None, e
         try:
             resp = session.get(url, timeout=30)
             resp.raise_for_status()
