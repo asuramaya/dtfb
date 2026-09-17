@@ -3,7 +3,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Interface: CLI](https://img.shields.io/badge/interface-CLI-informational.svg)](#cli-command-reference)
-[![Tests](https://img.shields.io/badge/tests-44%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen.svg)](tests/)
 
 **dtfb** ("Dealer to Facebook") automates the workflow of turning a vehicle listing from a dealership website
 into polished, platform-specific social-media posts and high-converting marketing visuals.
@@ -178,7 +178,7 @@ dtfb composites vehicle cutouts onto branded border frames. These assets live in
 
 ## CLI Reference & Usage
 
-Installing `dtfb` registers 6 CLI commands:
+Installing `dtfb` registers 7 CLI commands:
 
 ### 1. `dtfb` — Full Ingestion Pipeline
 Scrapes the VDP, runs CV segmentation, composes images/videos, and generates copy.
@@ -270,6 +270,24 @@ Generates animated MP4 video carousels with multi-angle cutouts timed to backgro
 ```bash
 hero-video ~/Documents/listings/used/2023-Ford-F-150-Raptor-PFA30435/
 ```
+
+### 7. `export-feed` — Inventory Syndication Feed
+Builds a CSV/TSV inventory feed from vehicles already scraped, in the shape third-party listing platforms
+(Meta/Facebook Automotive Inventory Ads, and by convergent convention most others) expect to ingest — VIN,
+price, mileage, colors, the dealer's own real photo URLs, one row per vehicle. There's no open, universal
+inventory feed standard (every DMS integration is a bespoke, gatekept vendor relationship), but *exporting*
+a feed needs nobody's permission — this just re-shapes data dtfb already has.
+
+```bash
+export-feed ~/Documents/listings --out feed.csv
+export-feed ~/Documents/listings/used --out used-feed.csv --condition used --tsv
+```
+
+Read `src/dtfb/export_feed.py`'s module docstring before relying on this in production: the exact field
+names were cross-confirmed from several independent secondary sources rather than pulled directly from
+Meta's own (JS-rendered, partially login-gated) spec page — validate the output against your destination
+platform's own feed validator, and adjust `FEED_COLUMNS`/`vehicle_to_row()` if reality differs; it's
+deliberately kept as one flat mapping table, not scattered logic.
 
 ---
 
@@ -387,6 +405,7 @@ src/dtfb/            — Core package
   ├── hero_video_cli.py — Animated video carousel generator
   ├── posts_cli.py   — Fast social copy regenerator (Marketplace, IG, Threads)
   ├── recompose_cli.py — Recompose bundles with updated borders/assets
+  ├── export_feed_cli.py — Inventory syndication feed generator (CSV/TSV)
   ├── scrape.py      — Playwright scraper & pluggable CMS extraction registry
   ├── listing.py     — Inventory search page crawler (VDP link discovery)
   ├── photos.py      — Photo gallery downloader and batch pipeline

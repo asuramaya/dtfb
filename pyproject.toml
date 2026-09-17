@@ -69,6 +69,7 @@ hero-video = "dtfb.hero_video_cli:main"
 posts = "dtfb.posts_cli:main"
 recompose = "dtfb.recompose_cli:main"
 inventory-sync = "dtfb.inventory_sync:main"
+export-feed = "dtfb.export_feed_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
