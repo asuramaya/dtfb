@@ -18,6 +18,7 @@ from .hero import compose_hero
 from .hero_video import compute_carousel_timing, compute_video_bitrate_kbps, render_hero_video
 from .layout import LAYOUTS, compute_placement, corners_layout, quad_layout, single_layout
 from .pipeline import compose_interiors, compose_vehicle, compose_wheel_shots
+from .spin import order_for_spin, render_spin_video
 from .window import detect_window
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "compute_placement", "LAYOUTS", "single_layout", "corners_layout", "quad_layout",
     "make_glow_layer", "paste_with_glow", "resolve_glow_color", "GLOW_COLORS",
     "render_hero_video", "compute_carousel_timing", "compute_video_bitrate_kbps",
+    "render_spin_video", "order_for_spin",
 ]

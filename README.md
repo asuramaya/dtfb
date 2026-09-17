@@ -3,7 +3,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Interface: CLI](https://img.shields.io/badge/interface-CLI-informational.svg)](#cli-command-reference)
-[![Tests](https://img.shields.io/badge/tests-54%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-59%20passed-brightgreen.svg)](tests/)
 
 **dtfb** ("Dealer to Facebook") automates the workflow of turning a vehicle listing from a dealership website
 into polished, platform-specific social-media posts and high-converting marketing visuals.
@@ -197,7 +197,7 @@ dtfb composites vehicle cutouts onto branded border frames. These assets live in
 
 ## CLI Reference & Usage
 
-Installing `dtfb` registers 7 CLI commands:
+Installing `dtfb` registers 8 CLI commands:
 
 ### 1. `dtfb` — Full Ingestion Pipeline
 Scrapes the VDP, runs CV segmentation, composes images/videos, and generates copy.
@@ -307,6 +307,21 @@ names were cross-confirmed from several independent secondary sources rather tha
 Meta's own (JS-rendered, partially login-gated) spec page — validate the output against your destination
 platform's own feed validator, and adjust `FEED_COLUMNS`/`vehicle_to_row()` if reality differs; it's
 deliberately kept as one flat mapping table, not scattered logic.
+
+### 8. `spin-video` — Rotating "Spin" Video from Real Angles
+Turns a vehicle's own real angle-labeled cutouts (front → front_3q → side → rear_3q → rear) into a rotating
+video via cross-dissolve interpolation between them — the used-inventory-appropriate alternative to a
+licensed generic 3D CAD model (right for new inventory, wrong for used: it shows the SKU, not the actual
+physical car). This is **not** true 3D reconstruction — that's confirmed research-stage industry-wide, not
+something any vendor ships at scale today. It's the same class of trick behind commercial "360 spin"
+products: synthesize a smooth rotation from a handful of real photos instead of requiring a turntable shoot.
+dtfb typically has 5 real angles per vehicle already — more anchor frames than the reference product's own
+4-photo baseline. See `src/dtfb/imaging/compose/spin.py`'s module docstring for the full scope/honesty
+notes (one side's half-turn, not a full 360; classical cross-dissolve, not a trained view-synthesis model).
+
+```bash
+spin-video ~/Documents/listings/used/2023-Ford-F-150-Raptor-PFA30435/
+```
 
 ---
 
@@ -425,6 +440,7 @@ src/dtfb/            — Core package
   ├── posts_cli.py   — Fast social copy regenerator (Marketplace, IG, Threads)
   ├── recompose_cli.py — Recompose bundles with updated borders/assets
   ├── export_feed_cli.py — Inventory syndication feed generator (CSV/TSV)
+  ├── spin_video_cli.py — Rotating spin video from real angle cutouts
   ├── scrape.py      — Playwright scraper & pluggable CMS extraction registry
   ├── listing.py     — Inventory search page crawler (VDP link discovery)
   ├── photos.py      — Photo gallery downloader and batch pipeline
