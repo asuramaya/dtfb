@@ -20,6 +20,25 @@ dtfb was originally built for [Tomball Ford](https://www.tomballford.com) (a Dea
 
 ---
 
+## Why dtfb?
+
+Vehicle photo/video merchandising software is a real market with real incumbents (CarCutter, Impel/SpinCar,
+Spyne, PBS Systems, and others), and most of it is built and priced for multi-rooftop dealer *groups* —
+contract terms, sales-call-gated pricing, brand-compliance dashboards across locations. That's a different
+customer than the single-rooftop independent dealer this project was actually built for.
+
+The closer comparison is the narrow pure-play tier — standalone AI background-removal/compositing tools —
+where pricing is public: as of this research (2026-09), one such vendor lists **$0.20–$0.40 per photo, no
+subscription**. dtfb does the same core job (photo classification, background removal, hero/video
+compositing, post copy) self-hosted, **for the marginal cost of your own compute after setup** — no
+per-photo fee, no monthly subscription, no contract, and your dealership's photos never leave your own
+server. It's free and open source (MIT), not a crippled trial of a paid product.
+
+That's the tradeoff, stated plainly: you run it yourself (a GPU with 4+ GB VRAM recommended, see below), and
+in exchange you own the pipeline outright.
+
+---
+
 ## Hardware & System Requirements
 
 ### Hardware & GPU Acceleration
