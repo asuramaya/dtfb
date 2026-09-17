@@ -1,0 +1,17 @@
+[
+  {
+    "case": "promote-silverado",
+    "expect": [["09.jpg", "promoted"]],
+    "note": "genuine misfile -- a pink-banner exterior shot filed under older code before strip_banner covered this banner instance; current code correctly recovers it"
+  },
+  {
+    "case": "reject-honda",
+    "expect": [["20.jpg", "rejected_by_gallery"]],
+    "note": "wheel/fender close-up scores exterior via DETAIL_LABEL, but doesn't resemble the vehicle's other shots -- gallery consensus correctly refuses to re-promote it"
+  },
+  {
+    "case": "stays-interior-tesla-dash",
+    "expect": [["08.jpg", "rejected_by_gallery"]],
+    "note": "dashboard screen showing a 3D car render scores exterior(0.83) at the TOP-LEVEL classifier directly, not just the tiebreak -- gallery consensus is the real safety net catching this one, not classification"
+  }
+]

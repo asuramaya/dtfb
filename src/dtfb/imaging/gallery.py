@@ -458,3 +458,187 @@ def demote_foreign_cutouts(vehicle_folder: Path, backbone=None,
         angles_path.write_text(json.dumps(angles, indent=2))
 
     return found
+
+
+@dataclass
+class ReclassifiedPhoto:
+    """One images/interior/ photo the CURRENT pipeline disagrees with --
+    and what happened when re-promoting it to exterior was attempted."""
+    name: str                    # original interior/ filename, e.g. "07.jpg"
+    outcome: str                 # see resweep_interior_gallery()'s docstring for the outcome set
+    detail: str = ""
+    new_name: str | None = None  # exterior/cutout/<new_name> if outcome == "promoted"
+
+    def describe(self) -> str:
+        if self.outcome == "promoted":
+            return f"{self.name} -> exterior/cutout/{self.new_name}"
+        if self.outcome == "rejected_by_gallery":
+            return (f"{self.name}: current classifier now calls this exterior, but the gallery "
+                     f"consensus check would demote it right back ({self.detail}) -- left in place")
+        if self.outcome == "cutout_failed":
+            return (f"{self.name}: current classifier now calls this exterior, but cutout "
+                     f"generation failed ({self.detail}) -- left in place")
+        if self.outcome == "wheel_eligible_skipped":
+            return (f"{self.name}: current classifier now calls this exterior and looks "
+                     "wheel-centric -- promoting a wheel-routed shot isn't supported yet, left in place")
+        if self.outcome == "insufficient_gallery":
+            return (f"{self.name}: current classifier now calls this exterior, but there aren't "
+                     "enough existing cutouts for the gallery consensus check to have an opinion "
+                     "-- left in place rather than promoted unverified")
+        if self.outcome == "classify_failed":
+            return f"{self.name}: reclassification failed ({self.detail}) -- left in place"
+        return f"{self.name}: {self.outcome}"
+
+
+def resweep_interior_gallery(vehicle_folder: Path, classifier, interior_tiebreak_classifier=None,
+                              angle_classifier=None, wheel_classifier=None, backbone=None,
+                              upscale_model: str = "swinir", dry_run: bool = False
+                              ) -> list[ReclassifiedPhoto]:
+    """Self-heal counterpart to demote_foreign_cutouts(): re-runs the
+    CURRENT evaluate_photo() against every photo already sitting in
+    images/interior/, promoting any it now calls exterior.
+
+    Exists because already_fetched() means a vehicle is only ever
+    classified ONCE, at scrape time -- a classifier fix or threshold
+    change (see imaging/pipeline.py's INTERIOR_TIEBREAK_THRESHOLD history,
+    and the DETAIL_LABEL gap documented right below it) never
+    retroactively applies to vehicles already on disk. A folder scraped
+    before the fix existed just stays wrong forever unless someone
+    manually re-audits it -- which is literally how the 2026-09 fleet
+    audit that motivated this function was done, by hand, for exactly 2
+    vehicles out of 10 candidates. This is what makes that repeatable.
+
+    Deliberately conservative in ways confirmed necessary by that same
+    audit -- 7 of the 10 "exterior-looking" interior photos found were NOT
+    genuine recoverable misfiles:
+      1. A photo only promotes if it also produces a valid cutout
+         (remove_background's own quality gate). This alone doesn't catch
+         everything: most DETAIL_LABEL misfires on a tight interior
+         close-up (a door handle, a console button) still segment
+         "successfully" by rembg's standards -- see (2).
+      2. A promoted cutout is checked against find_foreign_cutouts() on a
+         STAGED COPY of the real gallery before anything is written -- if
+         the gallery consensus check would demote it right back (common:
+         an unusual close-up framing genuinely doesn't resemble the
+         vehicle's other shots), it's left alone. Forcing it through would
+         reintroduce exactly the foreign-cutout-fusion bug class that
+         check exists to prevent. If the existing gallery is too small for
+         the consensus check to form an opinion at all, that's ALSO
+         treated as "don't promote" (find_foreign_cutouts' own "empty
+         means no opinion, not all clean" contract), not as tacit
+         approval.
+      3. Wheel-eligible-looking candidates (should_extract_wheel() would
+         route them to the wheel pipeline) are reported but not promoted
+         -- this only implements the general whole-vehicle cutout path,
+         not the wheel money-shot path. Rare in practice.
+
+    Caller is responsible for regenerating deliverables for any vehicle
+    with a promotion (recompose --interiors, then hero-video) -- this
+    function only touches the raw photo/cutout/angles.json layer, same
+    division of labour as demote_foreign_cutouts().
+
+    `outcome` on each returned ReclassifiedPhoto is one of: "promoted",
+    "rejected_by_gallery", "cutout_failed", "wheel_eligible_skipped",
+    "insufficient_gallery", "classify_failed". A photo the current
+    classifier still calls interior isn't returned at all -- that's not a
+    finding, it's confirmation nothing needs to change.
+    """
+    import io
+    import json
+    import shutil
+    import tempfile
+
+    from dtfb.imaging.cutout import remove_background
+    from dtfb.imaging.pipeline import evaluate_photo, should_extract_wheel
+    from dtfb.imaging.upscale import upscale
+
+    vehicle_folder = Path(vehicle_folder)
+    interior_dir = vehicle_folder / "images" / "interior"
+    ext_dir = vehicle_folder / "images" / "exterior"
+    cutout_dir = ext_dir / "cutout"
+    if not interior_dir.is_dir():
+        return []
+
+    if backbone is None:
+        from dtfb.imaging.classify import default_backbone
+        backbone = default_backbone()
+
+    photos = sorted(p for p in interior_dir.iterdir() if p.suffix.lower() in (".jpg", ".jpeg"))
+    results: list[ReclassifiedPhoto] = []
+
+    for photo_path in photos:
+        content = photo_path.read_bytes()
+        try:
+            verdict = evaluate_photo(content, classifier, interior_tiebreak_classifier)
+        except Exception as e:
+            results.append(ReclassifiedPhoto(photo_path.name, "classify_failed", str(e)))
+            continue
+        if verdict.category != "exterior":
+            continue  # current code still calls it interior -- correct, nothing to do
+
+        if wheel_classifier is not None and should_extract_wheel(content, verdict, wheel_classifier):
+            results.append(ReclassifiedPhoto(photo_path.name, "wheel_eligible_skipped"))
+            continue
+
+        cutout = remove_background(content)
+        if cutout.bbox is None or not cutout.quality_ok:
+            results.append(ReclassifiedPhoto(photo_path.name, "cutout_failed", f"bbox={cutout.bbox}"))
+            continue
+        cropped = cutout.cutout.crop(cutout.bbox)
+        rgba = upscale(cropped, upscale_model)
+
+        existing_gallery = list(cutout_dir.glob("*.png")) if cutout_dir.is_dir() else []
+        if len(existing_gallery) + 1 < MIN_GALLERY_FOR_CHECK:
+            results.append(ReclassifiedPhoto(photo_path.name, "insufficient_gallery"))
+            continue
+
+        existing_n = [int(p.stem) for p in ext_dir.glob("*.jpg") if p.stem.isdigit()]
+        next_n = max(existing_n, default=0) + 1
+        candidate_name = f"{next_n:02d}.png"
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            for f in existing_gallery:
+                shutil.copy(f, tmp / f.name)
+            rgba.save(tmp / candidate_name)
+            foreign = find_foreign_cutouts(tmp, backbone=backbone)
+        flagged = next((f for f in foreign if f.name == candidate_name), None)
+        if flagged is not None:
+            results.append(ReclassifiedPhoto(photo_path.name, "rejected_by_gallery", flagged.describe()))
+            continue
+
+        if dry_run:
+            results.append(ReclassifiedPhoto(photo_path.name, "promoted", new_name=candidate_name))
+            continue
+
+        ext_path = ext_dir / f"{next_n:02d}{photo_path.suffix}"
+        ext_path.write_bytes(content)
+        cutout_dir.mkdir(parents=True, exist_ok=True)
+        cutout_path = cutout_dir / candidate_name
+        rgba.save(cutout_path)
+
+        if angle_classifier is not None:
+            a = angle_classifier.classify_file(cutout_path)
+            angles_path = cutout_dir / "angles.json"
+            try:
+                angles = json.loads(angles_path.read_text())
+            except (OSError, ValueError):
+                angles = {}
+            entry = {"angle": a.label, "confidence": round(a.confidence, 3)}
+            if a.label == "side":
+                from dtfb.imaging.classify import detect_hood_side
+                buf = io.BytesIO()
+                rgba.save(buf, format="PNG")
+                try:
+                    entry["hood_side"] = detect_hood_side(buf.getvalue())
+                except Exception:
+                    pass
+            angles[candidate_name] = entry
+            angles_path.write_text(json.dumps(angles, indent=2))
+
+        photo_path.unlink()
+        (vehicle_folder / "bundle" / "interior" / photo_path.name).unlink(missing_ok=True)
+
+        results.append(ReclassifiedPhoto(photo_path.name, "promoted", new_name=candidate_name))
+
+    return results

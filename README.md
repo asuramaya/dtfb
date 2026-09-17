@@ -239,6 +239,20 @@ Re-renders `bundle/hero.png` and `bundle/framed/*.png` using already-extracted c
 recompose ~/Documents/listings --border "Generic Dealer Frame"
 ```
 
+`--resweep` self-heals photos that were misfiled into `images/interior/` under an older classifier or
+threshold: it re-runs *current* classification against every interior photo already on disk and promotes
+any that the pipeline would now call exterior — without re-scraping. It's conservative by design (a
+promotion only happens if the photo also produces a valid cutout AND survives the same gallery-consistency
+check `--prune-foreign` runs in reverse), so most candidates get correctly left alone; use `--dry-run`
+first to see what it would do.
+
+```bash
+recompose ~/Documents/listings --resweep --interiors --dry-run   # preview
+recompose ~/Documents/listings --resweep --interiors             # apply
+# then, for any vehicle it reports as changed:
+hero-video ~/Documents/listings/used/2023-Ford-.../ --format all
+```
+
 ### 5. `compose` — Custom Single-Vehicle Hero Composer
 Compose custom hero layouts for a single vehicle with specific layouts (`quad`, `corners`, `trio`, `split`), backgrounds, and lighting effects.
 

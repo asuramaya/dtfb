@@ -107,6 +107,15 @@ def main():
                               "doesn't vouch for and move its photo to images/interior/. Applies the "
                               "same check dtfb.py now runs during a scrape to folders captured before "
                               "it existed. See imaging/gallery.py.")
+    parser.add_argument("--resweep", action="store_true",
+                         help="Before recomposing, re-run current classification against every photo "
+                              "in images/interior/ and promote any the CURRENT pipeline now calls "
+                              "exterior (self-heals photos misfiled under an older classifier/threshold "
+                              "-- see imaging/gallery.py::resweep_interior_gallery). Conservative: only "
+                              "promotes a photo that also produces a valid cutout AND survives the "
+                              "gallery-consensus check (--prune-foreign's own check, run in reverse). "
+                              "Pass --interiors too so bundle/interior/ picks up the removal, and "
+                              "regenerate hero videos afterward for any vehicle this changes.")
     parser.add_argument("--calibrate", action="store_true",
                          help="Re-derive the cutout-consensus threshold from the galleries on disk and "
                               "write <root>/cutout-calibration.json, which --prune-foreign and dtfb.py "
@@ -161,6 +170,35 @@ def main():
                 print(f"  {verb} {folder.name}/{f.describe()}")
         print(f"{'Would demote' if args.dry_run else 'Demoted'} {pruned} cutout(s) to interior.\n")
 
+    resweep_changed: list[Path] = []
+    if args.resweep:
+        from dtfb.imaging.classify import (AngleClassifier, InteriorExteriorTiebreakClassifier,
+                                            SceneClassifier, WheelDetailClassifier, default_backbone)
+        from dtfb.imaging.gallery import resweep_interior_gallery
+
+        backbone = default_backbone()
+        scene_classifier = SceneClassifier(backbone=backbone)
+        tiebreak_classifier = InteriorExteriorTiebreakClassifier(backbone=backbone)
+        angle_classifier = AngleClassifier(backbone=backbone)
+        wheel_classifier = WheelDetailClassifier(backbone=backbone)
+
+        promoted = other = 0
+        for folder in folders:
+            found = resweep_interior_gallery(
+                folder, scene_classifier, tiebreak_classifier, angle_classifier, wheel_classifier,
+                backbone=backbone, dry_run=args.dry_run)
+            if found:
+                changed = any(r.outcome == "promoted" for r in found)
+                if changed and not args.dry_run:
+                    resweep_changed.append(folder)
+                for r in found:
+                    verb_note = "would promote" if (r.outcome == "promoted" and args.dry_run) else None
+                    promoted += 1 if r.outcome == "promoted" else 0
+                    other += 1 if r.outcome != "promoted" else 0
+                    print(f"  {verb_note or r.outcome}: {folder.name}/{r.describe()}")
+        print(f"{'Would promote' if args.dry_run else 'Promoted'} {promoted} photo(s) from interior to "
+              f"exterior ({other} other candidate(s) inspected and correctly left in place).\n")
+
     if args.dry_run:
         for f in folders:
             print(f"  would rebuild {f.name}")
@@ -213,6 +251,12 @@ def main():
 
     interior_total = f" and {total_interior} interior image(s)" if args.interiors else ""
     print(f"\nRebuilt {total_hero} hero image(s), {total_framed} framed image(s){interior_total}.")
+
+    if resweep_changed:
+        print(f"\n{len(resweep_changed)} vehicle(s) gained a reclaimed angle -- their hero videos are "
+              "now stale (this tool never touches video, see hero_video_cli.py). Regenerate with:")
+        for folder in resweep_changed:
+            print(f"  hero-video {folder} --format all")
 
 
 if __name__ == "__main__":

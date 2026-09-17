@@ -166,6 +166,67 @@ def run_gallery_cases() -> tuple[int, int]:
     return len(manifest), failures
 
 
+def run_resweep_cases() -> tuple[int, int]:
+    """imaging/gallery.py::resweep_interior_gallery() -- the self-heal
+    sweep that re-promotes an images/interior/ photo the CURRENT pipeline
+    now calls exterior. Each case pairs one real interior/ candidate photo
+    with a real (possibly trimmed) exterior cutout gallery, snapshotted
+    from the same vehicle:
+      - promote-silverado: a genuine misfile, recoverable -- PG192576's
+        pink-banner exterior shot that strip_banner now handles correctly
+        (see decision on 2026-09-10's hand-fix of this exact vehicle).
+      - reject-honda: SA051501's wheel/fender close-up. CLIP calls it
+        exterior (via DETAIL_LABEL, see the gap documented in
+        imaging/pipeline.py), but it's genuinely visually unlike this
+        vehicle's other shots -- the gallery-consensus check must still
+        reject it, or this function would reintroduce the foreign-cutout
+        bug class gallery.py exists to prevent.
+      - stays-interior-tesla-dash: TA492314's dashboard-screen-showing-a-
+        3D-car-render shot, the known ambiguous case INTERIOR_TIEBREAK_
+        THRESHOLD's docstring discusses. Measured here (2026-09-17): it
+        does NOT stay interior via the tiebreak's protection -- the
+        top-level 5-way SceneClassifier calls it "exterior" directly
+        (0.83 confidence), bypassing the interior/tiebreak branch
+        entirely (evaluate_photo() only consults the tiebreak when the
+        top-level label is "interior"). The gallery-consensus check is
+        the thing that actually catches it. Real defense-in-depth, not
+        redundant: the two checks protect against different failure
+        modes and this case only demonstrates the second one working.
+    Always run dry_run=True: this harness pins DECISIONS, it must never
+    mutate the checked-in fixtures.
+    """
+    from dtfb.imaging.classify import (AngleClassifier, InteriorExteriorTiebreakClassifier,
+                                        SceneClassifier, WheelDetailClassifier, default_backbone)
+    from dtfb.imaging.gallery import resweep_interior_gallery
+
+    manifest = json.loads((CAL_DIR / "resweep_expected.json").read_text())
+    backbone = default_backbone()
+    scene = SceneClassifier(backbone=backbone)
+    tiebreak = InteriorExteriorTiebreakClassifier(backbone=backbone)
+    angle = AngleClassifier(backbone=backbone)
+    wheel = WheelDetailClassifier(backbone=backbone)
+
+    failures = 0
+    for entry in manifest:
+        folder = CAL_DIR / "resweep" / entry["case"]
+        expect = sorted(entry["expect"])
+        if not folder.is_dir():
+            print(f"FAIL {entry['case']}: snapshot folder missing")
+            failures += 1
+            continue
+
+        found = resweep_interior_gallery(folder, scene, tiebreak, angle, wheel,
+                                          backbone=backbone, dry_run=True)
+        got = sorted([r.name, r.outcome] for r in found)
+        if got == expect:
+            print(f"ok   {entry['case']}")
+        else:
+            print(f"FAIL {entry['case']}: expected {expect}, got {got}  [{entry['note']}]")
+            failures += 1
+
+    return len(manifest), failures
+
+
 def run_interior_cases() -> tuple[int, int]:
     import numpy as np
     from PIL import Image
@@ -309,6 +370,7 @@ def main() -> int:
         ("scene/wheel", run_scene_and_wheel_cases),
         ("banner", run_banner_cases),
         ("gallery", run_gallery_cases),
+        ("resweep", run_resweep_cases),
         ("interior", run_interior_cases),
         ("sticker", run_sticker_cases),
         ("select", run_select_cases),
