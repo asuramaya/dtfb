@@ -3,7 +3,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Interface: CLI](https://img.shields.io/badge/interface-CLI-informational.svg)](#cli-command-reference)
-[![Tests](https://img.shields.io/badge/tests-59%20passed-brightgreen.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-69%20passed-brightgreen.svg)](tests/)
 
 **dtfb** ("Dealer to Facebook") automates the workflow of turning a vehicle listing from a dealership website
 into polished, platform-specific social-media posts and high-converting marketing visuals.
@@ -36,6 +36,13 @@ server. It's free and open source (MIT), not a crippled trial of a paid product.
 
 That's the tradeoff, stated plainly: you run it yourself (a GPU with 4+ GB VRAM recommended, see below), and
 in exchange you own the pipeline outright.
+
+dtfb runs in **two modes on the same pipeline**: the CLI (the default, one-shot scripts and cron) and an
+opt-in **server mode** exposing a [CarCutter](https://cloud.car-cutter.com/doc/api.html)-API-shaped HTTP
+surface — see [Server Mode](#server-mode) below. The point isn't cloning CarCutter; it's that a lot of
+dealer-software integrations already speak that shape, so switching the base URL to a self-hosted, fully
+open alternative is a realistic option rather than a rewrite. Nothing about your inventory photos leaves
+your own server either way.
 
 ---
 
@@ -197,7 +204,7 @@ dtfb composites vehicle cutouts onto branded border frames. These assets live in
 
 ## CLI Reference & Usage
 
-Installing `dtfb` registers 8 CLI commands:
+Installing `dtfb` registers 8 CLI commands (a 9th, `dtfb-serve`, is opt-in -- see Server Mode below):
 
 ### 1. `dtfb` — Full Ingestion Pipeline
 Scrapes the VDP, runs CV segmentation, composes images/videos, and generates copy.
@@ -325,6 +332,39 @@ spin-video ~/Documents/listings/used/2023-Ford-F-150-Raptor-PFA30435/
 
 ---
 
+## Server Mode
+
+`dtfb-serve` is a 9th command, opt-in and separate from the 8 above — a long-running HTTP service instead
+of a one-shot script, exposing dtfb's own classify/cutout/composite pipeline behind a
+[CarCutter](https://cloud.car-cutter.com/doc/api.html)-API-shaped surface: same request/response shapes
+where it matters for drop-in compatibility, self-hosted, and every line of processing code is readable
+(unlike the closed SaaS API it mirrors). It's a different front door onto the same imaging pipeline the CLI
+uses, not a parallel implementation.
+
+```bash
+# Install the server extra (kept separate so `pip install -e .` for CLI-only use never pulls in a web framework)
+pip install -e ".[server]"
+
+dtfb-serve --data-dir ~/.dtfb-server --port 8000
+```
+
+Core endpoints implemented (see `src/dtfb/server/app.py`'s module docstring for the full scope, including
+what's accepted-for-compatibility but not yet behavioral, e.g. `cut_type="blur"`):
+
+- `POST /vehicle/composition/single-segment` — sync, one image in, one composited result out.
+- `POST /vehicle/image/submission` — async, up to 60 images, optional `webhook_url` callback.
+- `GET /vehicle/image/status` / `GET /vehicle/image/result` — poll a submission.
+- `POST /vehicle/submission`, `POST /vehicle/list`, `GET /vehicle/status`, `DELETE /vehicle/delete`,
+  `GET /vehicle/shotlist` — a light vehicle registry (SQLite-backed), bookkeeping only.
+
+```bash
+curl -X POST http://127.0.0.1:8000/vehicle/composition/single-segment \
+  -H "Content-Type: application/json" \
+  -d '{"image_url": "https://example.com/car.jpg", "cut_type": "complete"}'
+```
+
+---
+
 ## Daily Automation (Cron)
 
 The included `daily_sync.sh` wraps `inventory-sync` for unattended cron use: starts Ollama if configured
@@ -441,6 +481,10 @@ src/dtfb/            — Core package
   ├── recompose_cli.py — Recompose bundles with updated borders/assets
   ├── export_feed_cli.py — Inventory syndication feed generator (CSV/TSV)
   ├── spin_video_cli.py — Rotating spin video from real angle cutouts
+  ├── server/        — Opt-in CarCutter-API-shaped HTTP server (`dtfb-serve`)
+  │   ├── app.py     — FastAPI endpoints (vehicle registry + image processing)
+  │   ├── store.py   — SQLite-backed vehicle/submission registry
+  │   └── processing.py — Shared fetch->classify->cutout->composite pipeline
   ├── scrape.py      — Playwright scraper & pluggable CMS extraction registry
   ├── listing.py     — Inventory search page crawler (VDP link discovery)
   ├── photos.py      — Photo gallery downloader and batch pipeline

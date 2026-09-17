@@ -56,6 +56,14 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.9.0",
 ]
+# CLI mode (the default) needs none of this -- server mode (`dtfb-serve`) is
+# opt-in so installing dtfb to run it as a script doesn't drag in a web
+# framework nobody asked for. See src/dtfb/server/ for what it's for.
+server = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
+    "python-multipart>=0.0.9",
+]
 
 [project.urls]
 Homepage = "https://github.com/asuramaya/dtfb"
@@ -71,6 +79,7 @@ recompose = "dtfb.recompose_cli:main"
 inventory-sync = "dtfb.inventory_sync:main"
 export-feed = "dtfb.export_feed_cli:main"
 spin-video = "dtfb.spin_video_cli:main"
+dtfb-serve = "dtfb.server.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
