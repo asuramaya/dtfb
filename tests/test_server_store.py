@@ -1,7 +1,7 @@
 """Tests for server/store.py's SQLite-backed registry (roadmap item 5,
-dtfb project graph decision 1449fdef). Pure CRUD logic, no CV/HTTP
+lotstretcher project graph decision 1449fdef). Pure CRUD logic, no CV/HTTP
 needed -- fast pytest suite."""
-from dtfb.server import store
+from lotstretcher.server import store
 
 
 def test_upsert_and_get_vehicle(tmp_path):

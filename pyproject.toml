@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dtfb"
+name = "lotstretcher"
 version = "0.1.0"
 description = "Automated CLI pipeline turning dealership vehicle inventory into AI-enhanced social media posts, hero visuals, and video carousels."
 readme = "README.md"
@@ -56,9 +56,9 @@ dev = [
     "ruff>=0.4.0",
     "mypy>=1.9.0",
 ]
-# CLI mode (the default) needs none of this -- server mode (`dtfb-serve`) is
-# opt-in so installing dtfb to run it as a script doesn't drag in a web
-# framework nobody asked for. See src/dtfb/server/ for what it's for.
+# CLI mode (the default) needs none of this -- server mode (`lotstretcher-serve`) is
+# opt-in so installing lotstretcher to run it as a script doesn't drag in a web
+# framework nobody asked for. See src/lotstretcher/server/ for what it's for.
 server = [
     "fastapi>=0.110.0",
     "uvicorn>=0.29.0",
@@ -66,26 +66,26 @@ server = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/asuramaya/dtfb"
-Repository = "https://github.com/asuramaya/dtfb"
-Issues = "https://github.com/asuramaya/dtfb/issues"
+Homepage = "https://github.com/asuramaya/lotstretcher"
+Repository = "https://github.com/asuramaya/lotstretcher"
+Issues = "https://github.com/asuramaya/lotstretcher/issues"
 
 [project.scripts]
-dtfb = "dtfb.cli:main"
-compose = "dtfb.compose_cli:main"
-hero-video = "dtfb.hero_video_cli:main"
-posts = "dtfb.posts_cli:main"
-recompose = "dtfb.recompose_cli:main"
-inventory-sync = "dtfb.inventory_sync:main"
-export-feed = "dtfb.export_feed_cli:main"
-spin-video = "dtfb.spin_video_cli:main"
-dtfb-serve = "dtfb.server.app:main"
+lotstretcher = "lotstretcher.cli:main"
+compose = "lotstretcher.compose_cli:main"
+hero-video = "lotstretcher.hero_video_cli:main"
+posts = "lotstretcher.posts_cli:main"
+recompose = "lotstretcher.recompose_cli:main"
+inventory-sync = "lotstretcher.inventory_sync:main"
+export-feed = "lotstretcher.export_feed_cli:main"
+spin-video = "lotstretcher.spin_video_cli:main"
+lotstretcher-serve = "lotstretcher.server.app:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-dtfb = [
+lotstretcher = [
     "imaging/templates/*",
     "imaging/calibration/**/*",
 ]

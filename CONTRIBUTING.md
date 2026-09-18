@@ -1,13 +1,13 @@
-# Contributing to dtfb
+# Contributing to lotstretcher
 
-Thank you for your interest in contributing to **dtfb**!
+Thank you for your interest in contributing to **lotstretcher**!
 
 ## Development Setup
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-org/dtfb.git
-   cd dtfb
+   git clone https://github.com/your-org/lotstretcher.git
+   cd lotstretcher
    ```
 
 2. **Set up a virtual environment** (Python 3.11+ required):
@@ -24,7 +24,7 @@ Thank you for your interest in contributing to **dtfb**!
 
 ## Project Guidelines
 
-- **CLI + Server, Two Modes, One Pipeline**: `dtfb` is a high-performance CLI/automation pipeline (the default), plus an opt-in server mode (`src/dtfb/server/`, `pip install -e ".[server]"`) exposing that same pipeline behind a CarCutter-API-shaped HTTP surface for drop-in compatibility with existing integrations — self-hosted, fully open, unlike the closed SaaS API it mirrors. Server mode is a different front door onto the same imaging code, not a parallel implementation, and stays a separate optional dependency so installing dtfb to run it as a script never drags in a web framework. Please do not submit PRs adding a web *UI* (dashboards, admin panels) or vector search / RAG layers — that line still holds; an API surface for programmatic integration is a different thing than a UI.
+- **CLI + Server, Two Modes, One Pipeline**: `lotstretcher` is a high-performance CLI/automation pipeline (the default), plus an opt-in server mode (`src/lotstretcher/server/`, `pip install -e ".[server]"`) exposing that same pipeline behind a CarCutter-API-shaped HTTP surface for drop-in compatibility with existing integrations — self-hosted, fully open, unlike the closed SaaS API it mirrors. Server mode is a different front door onto the same imaging code, not a parallel implementation, and stays a separate optional dependency so installing lotstretcher to run it as a script never drags in a web framework. Please do not submit PRs adding a web *UI* (dashboards, admin panels) or vector search / RAG layers — that line still holds; an API surface for programmatic integration is a different thing than a UI.
 - **Resilient Scraping**: Dealership websites are dynamic and frequently sit behind Cloudflare challenges. Scrapers must fail gracefully without throwing uncaught exceptions on missing optional fields.
 - **Dealer-Agnostic Core**: Keep core post generators and composition logic dealer-agnostic via `dealer_config.py`. Never hardcode dealership-specific names, addresses, or phone numbers in library modules.
 

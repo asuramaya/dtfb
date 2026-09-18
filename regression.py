@@ -66,18 +66,18 @@ import json
 import sys
 from pathlib import Path
 
-CAL_DIR = Path(__file__).parent / "src" / "dtfb" / "imaging" / "calibration"
+CAL_DIR = Path(__file__).parent / "src" / "lotstretcher" / "imaging" / "calibration"
 
 
 def run_scene_and_wheel_cases() -> tuple[int, int]:
-    from dtfb.imaging.classify import (
+    from lotstretcher.imaging.classify import (
         InteriorExteriorTiebreakClassifier,
         SceneClassifier,
         SpareTireClassifier,
         WheelDetailClassifier,
     )
-    from dtfb.imaging.pipeline import evaluate_photo, should_extract_wheel
-    from dtfb.imaging.wheel import extract_wheel_shot
+    from lotstretcher.imaging.pipeline import evaluate_photo, should_extract_wheel
+    from lotstretcher.imaging.wheel import extract_wheel_shot
 
     manifest = json.loads((CAL_DIR / "expected.json").read_text())
     scene_clf = SceneClassifier()
@@ -113,7 +113,7 @@ def run_scene_and_wheel_cases() -> tuple[int, int]:
 def run_banner_cases() -> tuple[int, int]:
     from PIL import Image
 
-    from dtfb.imaging.letterbox import detect_banner
+    from lotstretcher.imaging.letterbox import detect_banner
 
     manifest = json.loads((CAL_DIR / "banner_expected.json").read_text())
     failures = 0
@@ -136,8 +136,8 @@ def run_banner_cases() -> tuple[int, int]:
 
 
 def run_gallery_cases() -> tuple[int, int]:
-    from dtfb.imaging.classify import default_backbone
-    from dtfb.imaging.gallery import CERTAIN_SIMILARITY, find_foreign_cutouts
+    from lotstretcher.imaging.classify import default_backbone
+    from lotstretcher.imaging.gallery import CERTAIN_SIMILARITY, find_foreign_cutouts
 
     manifest = json.loads((CAL_DIR / "gallery_expected.json").read_text())
     backbone = default_backbone()
@@ -195,9 +195,9 @@ def run_resweep_cases() -> tuple[int, int]:
     Always run dry_run=True: this harness pins DECISIONS, it must never
     mutate the checked-in fixtures.
     """
-    from dtfb.imaging.classify import (AngleClassifier, InteriorExteriorTiebreakClassifier,
+    from lotstretcher.imaging.classify import (AngleClassifier, InteriorExteriorTiebreakClassifier,
                                         SceneClassifier, WheelDetailClassifier, default_backbone)
-    from dtfb.imaging.gallery import resweep_interior_gallery
+    from lotstretcher.imaging.gallery import resweep_interior_gallery
 
     manifest = json.loads((CAL_DIR / "resweep_expected.json").read_text())
     backbone = default_backbone()
@@ -231,7 +231,7 @@ def run_interior_cases() -> tuple[int, int]:
     import numpy as np
     from PIL import Image
 
-    from dtfb.imaging.interior import enhance_interior
+    from lotstretcher.imaging.interior import enhance_interior
 
     def stats(img):
         arr = np.asarray(img.convert("RGB")).astype(np.float32) / 255
@@ -267,7 +267,7 @@ def run_interior_cases() -> tuple[int, int]:
 
 
 def run_sticker_cases() -> tuple[int, int]:
-    from dtfb.imaging.sticker import parse_sticker
+    from lotstretcher.imaging.sticker import parse_sticker
 
     manifest = json.loads((CAL_DIR / "sticker_expected.json").read_text())
     failures = 0
@@ -298,7 +298,7 @@ def run_sticker_cases() -> tuple[int, int]:
 
 
 def run_select_cases() -> tuple[int, int]:
-    from dtfb.imaging.select import (pick_adaptive, pick_all_for_carousel, pick_for_carousel,
+    from lotstretcher.imaging.select import (pick_adaptive, pick_all_for_carousel, pick_for_carousel,
                                  pick_for_conveyor, pick_for_quad_layout, pick_hero_shots,
                                  order_for_conveyor_start)
 
@@ -337,7 +337,7 @@ def run_select_cases() -> tuple[int, int]:
 
 
 def run_posts_cases() -> tuple[int, int]:
-    from dtfb.posts_cli import WRITERS, load_vehicle
+    from lotstretcher.posts_cli import WRITERS, load_vehicle
 
     posts_dir = CAL_DIR / "posts"
     cases = sorted(p for p in posts_dir.iterdir() if p.is_dir())

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from dtfb.dealer_config import DealerConfig, load, reload
+from lotstretcher.dealer_config import DealerConfig, load, reload
 
 
 def test_defaults() -> None:
@@ -52,8 +52,8 @@ def test_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     config_path = tmp / "config.json"
     config_path.write_text(json.dumps({"dealer_greeting": "Ask from file!"}), encoding="utf-8")
 
-    monkeypatch.setenv("DTFB_DEALER_GREETING", "Ask from env!")
-    monkeypatch.delenv("DTFB_CONFIG", raising=False)
+    monkeypatch.setenv("LOTSTRETCHER_DEALER_GREETING", "Ask from env!")
+    monkeypatch.delenv("LOTSTRETCHER_CONFIG", raising=False)
 
     cfg = reload(config_path)
     assert cfg.dealer_greeting == "Ask from env!"
@@ -76,7 +76,7 @@ def test_dealer_config_dataclass() -> None:
 
 def test_reload_clears_cache() -> None:
     """reload() clears the cached config."""
-    from dtfb.dealer_config import get as _get
+    from lotstretcher.dealer_config import get as _get
     cfg1 = _get()
     cfg2 = reload()
     assert cfg2.dealer_name == cfg1.dealer_name

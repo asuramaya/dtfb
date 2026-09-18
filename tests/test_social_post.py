@@ -1,7 +1,7 @@
 """Tests for social media post generation."""
 
-from dtfb.scrape import Vehicle
-from dtfb.dealer_config import reload
+from lotstretcher.scrape import Vehicle
+from lotstretcher.dealer_config import reload
 
 
 def _make_vehicle(**overrides) -> Vehicle:
@@ -29,7 +29,7 @@ def _make_vehicle(**overrides) -> Vehicle:
 
 def test_threads_limit() -> None:
     """Threads post is under 500 characters."""
-    from dtfb.social_post import build_threads_post
+    from lotstretcher.social_post import build_threads_post
 
     reload()
     post = build_threads_post(_make_vehicle())
@@ -38,7 +38,7 @@ def test_threads_limit() -> None:
 
 def test_instagram_caption() -> None:
     """Instagram caption is non-empty."""
-    from dtfb.social_post import build_instagram_caption
+    from lotstretcher.social_post import build_instagram_caption
 
     reload()
     caption = build_instagram_caption(_make_vehicle())
@@ -47,7 +47,7 @@ def test_instagram_caption() -> None:
 
 def test_tags_in_instagram() -> None:
     """Instagram caption includes hashtags from city_tags."""
-    from dtfb.social_post import build_instagram_caption
+    from lotstretcher.social_post import build_instagram_caption
 
     reload()
     caption = build_instagram_caption(_make_vehicle())
@@ -56,7 +56,7 @@ def test_tags_in_instagram() -> None:
 
 def test_threads_has_price() -> None:
     """Threads post contains the vehicle price."""
-    from dtfb.social_post import build_threads_post
+    from lotstretcher.social_post import build_threads_post
 
     reload()
     post = build_threads_post(_make_vehicle(display_price="$25,000"))

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import dtfb.manifest as fetch_manifest
+import lotstretcher.manifest as fetch_manifest
 
 
 SAMPLE_MANIFEST = {

@@ -1,16 +1,16 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="dtfb",
+    name="lotstretcher",
     version="0.1.0",
     description="Automated CLI pipeline turning dealership vehicle inventory into AI-enhanced social media posts, hero visuals, and video carousels.",
     long_description=open("README.md", encoding="utf-8").read(),
     long_description_content_type="text/markdown",
     author="asuramaya",
-    url="https://github.com/asuramaya/dtfb",
+    url="https://github.com/asuramaya/lotstretcher",
     project_urls={
-        "Source": "https://github.com/asuramaya/dtfb",
-        "Tracker": "https://github.com/asuramaya/dtfb/issues",
+        "Source": "https://github.com/asuramaya/lotstretcher",
+        "Tracker": "https://github.com/asuramaya/lotstretcher/issues",
     },
     license="MIT",
     keywords="dealership automotive facebook-marketplace instagram social-media computer-vision clip rembg",
@@ -31,7 +31,7 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     package_data={
-        "dtfb": [
+        "lotstretcher": [
             "imaging/templates/*",
             "imaging/calibration/**/*",
         ],
@@ -57,12 +57,12 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "dtfb = dtfb.cli:main",
-            "compose = dtfb.compose_cli:main",
-            "hero-video = dtfb.hero_video_cli:main",
-            "posts = dtfb.posts_cli:main",
-            "recompose = dtfb.recompose_cli:main",
-            "inventory-sync = dtfb.inventory_sync:main",
+            "lotstretcher = lotstretcher.cli:main",
+            "compose = lotstretcher.compose_cli:main",
+            "hero-video = lotstretcher.hero_video_cli:main",
+            "posts = lotstretcher.posts_cli:main",
+            "recompose = lotstretcher.recompose_cli:main",
+            "inventory-sync = lotstretcher.inventory_sync:main",
         ],
     },
 )

@@ -2,8 +2,8 @@
 
 import pytest
 
-from dtfb.dealer_config import reload
-from dtfb.scrape import Vehicle
+from lotstretcher.dealer_config import reload
+from lotstretcher.scrape import Vehicle
 
 
 def _make_vehicle(**overrides) -> Vehicle:
@@ -35,7 +35,7 @@ def _make_vehicle(**overrides) -> Vehicle:
 
 def test_post_includes_greeting() -> None:
     """The dealer greeting is in the first line of every post."""
-    from dtfb.facebook_post import build_facebook_post
+    from lotstretcher.facebook_post import build_facebook_post
 
     reload()
     post = build_facebook_post(_make_vehicle())
@@ -45,7 +45,7 @@ def test_post_includes_greeting() -> None:
 
 def test_post_includes_address() -> None:
     """The dealer address is present."""
-    from dtfb.facebook_post import build_facebook_post
+    from lotstretcher.facebook_post import build_facebook_post
 
     reload()
     post = build_facebook_post(_make_vehicle())
@@ -54,7 +54,7 @@ def test_post_includes_address() -> None:
 
 def test_post_headline_new() -> None:
     """New vehicles get 'New' prepended to the title."""
-    from dtfb.facebook_post import build_facebook_post
+    from lotstretcher.facebook_post import build_facebook_post
 
     reload()
     post = build_facebook_post(_make_vehicle(condition="New"))
@@ -64,7 +64,7 @@ def test_post_headline_new() -> None:
 
 def test_post_headline_used() -> None:
     """Used vehicles do NOT get 'New' prepended."""
-    from dtfb.facebook_post import build_facebook_post
+    from lotstretcher.facebook_post import build_facebook_post
 
     reload()
     post = build_facebook_post(_make_vehicle(condition="Used"))
@@ -73,7 +73,7 @@ def test_post_headline_used() -> None:
 
 
 def test_post_includes_mileage() -> None:
-    from dtfb.facebook_post import build_facebook_post
+    from lotstretcher.facebook_post import build_facebook_post
 
     reload()
     post = build_facebook_post(_make_vehicle(mileage=15000))
@@ -81,7 +81,7 @@ def test_post_includes_mileage() -> None:
 
 
 def test_post_includes_vin() -> None:
-    from dtfb.facebook_post import build_facebook_post
+    from lotstretcher.facebook_post import build_facebook_post
 
     reload()
     post = build_facebook_post(_make_vehicle(vin="1HGCY1F24SA123456"))
@@ -90,7 +90,7 @@ def test_post_includes_vin() -> None:
 
 def test_post_price_call() -> None:
     """Unpriced vehicles show 'Call for Price'."""
-    from dtfb.facebook_post import build_facebook_post
+    from lotstretcher.facebook_post import build_facebook_post
 
     reload()
     post = build_facebook_post(_make_vehicle(display_price=None))
@@ -99,7 +99,7 @@ def test_post_price_call() -> None:
 
 def test_resolve_display_price_new_msrp() -> None:
     """New vehicles prefer MSRP over display_price."""
-    from dtfb.facebook_post import resolve_display_price
+    from lotstretcher.facebook_post import resolve_display_price
 
     v = _make_vehicle(condition="New", display_price="$50,495",
                        pricing_rows=[{"label": "MSRP", "text": "$54,770"}])
@@ -108,7 +108,7 @@ def test_resolve_display_price_new_msrp() -> None:
 
 def test_resolve_display_price_used() -> None:
     """Used vehicles just show display_price."""
-    from dtfb.facebook_post import resolve_display_price
+    from lotstretcher.facebook_post import resolve_display_price
 
     v = _make_vehicle(condition="Used", display_price="$25,000")
     assert resolve_display_price(v) == "$25,000"
@@ -116,7 +116,7 @@ def test_resolve_display_price_used() -> None:
 
 def test_resolve_original_msrp() -> None:
     """Used vehicles with a sticker show original MSRP comparison."""
-    from dtfb.facebook_post import resolve_original_msrp_comparison
+    from lotstretcher.facebook_post import resolve_original_msrp_comparison
 
     v = _make_vehicle(condition="Used", sticker={"pricing": {"total_msrp": "$35,000"}},
                        display_price="$25,000")
@@ -126,7 +126,7 @@ def test_resolve_original_msrp() -> None:
 
 def test_resolve_original_msrp_new() -> None:
     """New vehicles don't show original MSRP (it's the same as current)."""
-    from dtfb.facebook_post import resolve_original_msrp_comparison
+    from lotstretcher.facebook_post import resolve_original_msrp_comparison
 
     v = _make_vehicle(condition="New", sticker={"pricing": {"total_msrp": "$35,000"}},
                        display_price="$35,000")
@@ -135,7 +135,7 @@ def test_resolve_original_msrp_new() -> None:
 
 def test_manufacturer_more_details_ford() -> None:
     """Ford vehicles with a sticker get a QR link."""
-    from dtfb.facebook_post import resolve_more_details_link
+    from lotstretcher.facebook_post import resolve_more_details_link
 
     v = _make_vehicle(make="Ford", sticker={"pricing": {"total_msrp": "50000"}})
     link = resolve_more_details_link(v)
@@ -145,7 +145,7 @@ def test_manufacturer_more_details_ford() -> None:
 
 def test_manufacturer_more_details_honda() -> None:
     """Honda vehicles get no link (no resolver registered)."""
-    from dtfb.facebook_post import resolve_more_details_link
+    from lotstretcher.facebook_post import resolve_more_details_link
 
     v = _make_vehicle(make="Honda", sticker={"pricing": {"total_msrp": "50000"}})
     assert resolve_more_details_link(v) is None

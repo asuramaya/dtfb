@@ -1,4 +1,4 @@
-"""Shared fixtures for dtfb tests."""
+"""Shared fixtures for lotstretcher tests."""
 
 import json
 from pathlib import Path

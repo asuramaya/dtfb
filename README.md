@@ -1,12 +1,13 @@
-# dtfb · dealer-to-facebook
+# lotstretcher
 
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Interface: CLI](https://img.shields.io/badge/interface-CLI-informational.svg)](#cli-command-reference)
 [![Tests](https://img.shields.io/badge/tests-80%20passed-brightgreen.svg)](tests/)
 
-**dtfb** ("Dealer to Facebook") automates the workflow of turning a vehicle listing from a dealership website
-into polished, platform-specific social-media posts and high-converting marketing visuals.
+**lotstretcher** automates the workflow of turning a vehicle listing from a dealership website
+into polished, platform-specific social-media posts and high-converting marketing visuals -- stretching one
+photo shoot into every format a dealer's lot needs to sell a car online.
 
 Given a vehicle detail page (VDP) URL, it:
 
@@ -16,11 +17,11 @@ Given a vehicle detail page (VDP) URL, it:
 4. **Generates** ready-to-copy-paste posts for Facebook Marketplace, Instagram, and Threads — each tailored to platform character limits, hashtag strategies, and preview rules.
 5. **Tracks** processed inventory via a persistent manifest, making daily syncs fast and incremental.
 
-dtfb was originally built for [Tomball Ford](https://www.tomballford.com) (a DealerInspire CMS site) and is designed to work plug-and-play with any DealerInspire-powered dealership, and with any other dealership CMS via a pluggable extractor architecture.
+lotstretcher was originally built for [Tomball Ford](https://www.tomballford.com) (a DealerInspire CMS site) and is designed to work plug-and-play with any DealerInspire-powered dealership, and with any other dealership CMS via a pluggable extractor architecture.
 
 ---
 
-## Why dtfb?
+## Why lotstretcher?
 
 Vehicle photo/video merchandising software is a real market with real incumbents (CarCutter, Impel/SpinCar,
 Spyne, PBS Systems, and others), and most of it is built and priced for multi-rooftop dealer *groups* —
@@ -29,7 +30,7 @@ customer than the single-rooftop independent dealer this project was actually bu
 
 The closer comparison is the narrow pure-play tier — standalone AI background-removal/compositing tools —
 where pricing is public: as of this research (2026-09), one such vendor lists **$0.20–$0.40 per photo, no
-subscription**. dtfb does the same core job (photo classification, background removal, hero/video
+subscription**. lotstretcher does the same core job (photo classification, background removal, hero/video
 compositing, post copy) self-hosted, **for the marginal cost of your own compute after setup** — no
 per-photo fee, no monthly subscription, no contract, and your dealership's photos never leave your own
 server. It's free and open source (MIT), not a crippled trial of a paid product.
@@ -37,7 +38,7 @@ server. It's free and open source (MIT), not a crippled trial of a paid product.
 That's the tradeoff, stated plainly: you run it yourself (a GPU with 4+ GB VRAM recommended, see below), and
 in exchange you own the pipeline outright.
 
-dtfb runs in **two modes on the same pipeline**: the CLI (the default, one-shot scripts and cron) and an
+lotstretcher runs in **two modes on the same pipeline**: the CLI (the default, one-shot scripts and cron) and an
 opt-in **server mode** exposing a [CarCutter](https://cloud.car-cutter.com/doc/api.html)-API-shaped HTTP
 surface — see [Server Mode](#server-mode) below. The point isn't cloning CarCutter; it's that a lot of
 dealer-software integrations already speak that shape, so switching the base URL to a self-hosted, fully
@@ -66,18 +67,18 @@ your own server either way.
 
 ## Installation
 
-Because `dtfb` is distributed as an open-source source repository, clone the repository and install it inside a Python virtual environment:
+Because `lotstretcher` is distributed as an open-source source repository, clone the repository and install it inside a Python virtual environment:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/asuramaya/dtfb.git
-cd dtfb
+git clone https://github.com/asuramaya/lotstretcher.git
+cd lotstretcher
 
 # 2. Create and activate a virtual environment (Python 3.11+)
 python3 -m venv .venv
 source .venv/bin/activate
 
-# 3. Upgrade pip and install dtfb in editable mode
+# 3. Upgrade pip and install lotstretcher in editable mode
 pip install --upgrade pip
 pip install -e .
 
@@ -95,7 +96,7 @@ playwright install chromium
 Process a single vehicle listing:
 
 ```bash
-dtfb "https://www.tomballford.com/vehicle/1HGCY1F24SA035661/Used-2025-Honda-Accord-Tomball-TX/"
+lotstretcher "https://www.tomballford.com/vehicle/1HGCY1F24SA035661/Used-2025-Honda-Accord-Tomball-TX/"
 ```
 
 Output lands in the current working directory under `new/` or `used/`, bucketed by condition. Each vehicle folder contains structured data, source assets, and finished marketing deliverables:
@@ -128,8 +129,8 @@ Output lands in the current working directory under `new/` or `used/`, bucketed 
 
 ## Configuration
 
-dtfb uses a flexible configuration hierarchy:
-**CLI Arguments > Environment Variables (`DTFB_*`) > JSON Config File (`--dealer-config` / `DTFB_CONFIG`) > Default Values**
+lotstretcher uses a flexible configuration hierarchy:
+**CLI Arguments > Environment Variables (`LOTSTRETCHER_*`) > JSON Config File (`--dealer-config` / `LOTSTRETCHER_CONFIG`) > Default Values**
 
 ### 1. JSON Configuration File
 
@@ -151,37 +152,37 @@ Create a `dealer-config.json` file for your dealership:
 }
 ```
 
-`inventory_urls` is what `inventory-sync --scope <name>` reads, so you can run `inventory-sync --scope used` instead of retyping your dealer's full URL every time. Scope names are entirely up to you -- they're just keys in this object, not a fixed set dtfb understands. There's deliberately no built-in default for these (unlike `dealer_name`/`dealer_greeting`/etc): an unconfigured `--scope` fails loudly rather than silently pointing at whichever dealership this tool happened to ship with example values for.
+`inventory_urls` is what `inventory-sync --scope <name>` reads, so you can run `inventory-sync --scope used` instead of retyping your dealer's full URL every time. Scope names are entirely up to you -- they're just keys in this object, not a fixed set lotstretcher understands. There's deliberately no built-in default for these (unlike `dealer_name`/`dealer_greeting`/etc): an unconfigured `--scope` fails loudly rather than silently pointing at whichever dealership this tool happened to ship with example values for.
 
-Pass it on any command with `--dealer-config` or by setting the `DTFB_CONFIG` environment variable:
+Pass it on any command with `--dealer-config` or by setting the `LOTSTRETCHER_CONFIG` environment variable:
 
 ```bash
-dtfb <vdp-url> --dealer-config /path/to/dealer-config.json
+lotstretcher <vdp-url> --dealer-config /path/to/dealer-config.json
 ```
 
 ### 2. Environment Variables
 
-You can also configure dtfb directly using environment variables (ideal for Docker or CI/CD pipelines):
+You can also configure lotstretcher directly using environment variables (ideal for Docker or CI/CD pipelines):
 
 | Environment Variable | Description | Default |
 |---|---|---|
-| `DTFB_CONFIG` | Path to a JSON configuration file | `None` |
-| `DTFB_DEALER_NAME` | Dealership name used in copy & captions | `Tomball Ford` |
-| `DTFB_DEALER_GREETING` | Greeting line in Facebook / social posts | `Ask for us at the front desk!` |
-| `DTFB_DEALER_ADDRESS` | Physical address included in listing copy | `22702 TX-249, Tomball, TX 77375` |
-| `DTFB_CITY_TAGS` | Comma-separated hashtags for social copy | `Tomball,TomballCars,Houston,HoustonCars` |
-| `DTFB_DEFAULT_BORDER_TAG`| Default border tag from `assets/manifest.json` | `tomball-dealer-frame` |
-| `DTFB_INVENTORY_URL` | Full inventory search URL for batch crawling | `None` |
-| `DTFB_INVENTORY_URL_<SCOPE>` | Per-scope inventory URL, e.g. `DTFB_INVENTORY_URL_USED` for `--scope used` | `None` |
-| `DTFB_LISTINGS_ROOT` | Default output directory for listings | `./listings` or current directory |
+| `LOTSTRETCHER_CONFIG` | Path to a JSON configuration file | `None` |
+| `LOTSTRETCHER_DEALER_NAME` | Dealership name used in copy & captions | `Tomball Ford` |
+| `LOTSTRETCHER_DEALER_GREETING` | Greeting line in Facebook / social posts | `Ask for us at the front desk!` |
+| `LOTSTRETCHER_DEALER_ADDRESS` | Physical address included in listing copy | `22702 TX-249, Tomball, TX 77375` |
+| `LOTSTRETCHER_CITY_TAGS` | Comma-separated hashtags for social copy | `Tomball,TomballCars,Houston,HoustonCars` |
+| `LOTSTRETCHER_DEFAULT_BORDER_TAG`| Default border tag from `assets/manifest.json` | `tomball-dealer-frame` |
+| `LOTSTRETCHER_INVENTORY_URL` | Full inventory search URL for batch crawling | `None` |
+| `LOTSTRETCHER_INVENTORY_URL_<SCOPE>` | Per-scope inventory URL, e.g. `LOTSTRETCHER_INVENTORY_URL_USED` for `--scope used` | `None` |
+| `LOTSTRETCHER_LISTINGS_ROOT` | Default output directory for listings | `./listings` or current directory |
 
-See `.env.example` and `dtfb-config.json.example` for template files.
+See `.env.example` and `lotstretcher-config.json.example` for template files.
 
 ---
 
 ## Branded Assets & Borders
 
-dtfb composites vehicle cutouts onto branded border frames. These assets live in `assets/` and are cataloged in `assets/manifest.json`:
+lotstretcher composites vehicle cutouts onto branded border frames. These assets live in `assets/` and are cataloged in `assets/manifest.json`:
 
 - `assets/borders/`: Frame PNGs with transparent center windows (standard size: **1254×1254**). The frame sits on top of the cutouts so logos and phone numbers stay sharp.
 - `assets/backgrounds/`: Background textures and graphics (used when not using the per-vehicle gradient generator).
@@ -204,39 +205,39 @@ dtfb composites vehicle cutouts onto branded border frames. These assets live in
 
 ## CLI Reference & Usage
 
-Installing `dtfb` registers 8 CLI commands (a 9th, `dtfb-serve`, is opt-in -- see Server Mode below):
+Installing `lotstretcher` registers 8 CLI commands (a 9th, `lotstretcher-serve`, is opt-in -- see Server Mode below):
 
-### 1. `dtfb` — Full Ingestion Pipeline
+### 1. `lotstretcher` — Full Ingestion Pipeline
 Scrapes the VDP, runs CV segmentation, composes images/videos, and generates copy.
 
 ```bash
 # Single vehicle
-dtfb https://www.yourdealer.com/vehicle/12345/Used-2023-Ford-F-150/
+lotstretcher https://www.yourdealer.com/vehicle/12345/Used-2023-Ford-F-150/
 
 # Batch from a URL list file
-dtfb --file urls.txt --out ~/Documents/listings
+lotstretcher --file urls.txt --out ~/Documents/listings
 
 # Crawl an inventory listing page (expands all matching VDPs)
-dtfb "https://www.yourdealer.com/inventory/all-vehicles/?make=Ford&model=Mustang" --out ~/Documents/listings
+lotstretcher "https://www.yourdealer.com/inventory/all-vehicles/?make=Ford&model=Mustang" --out ~/Documents/listings
 
 # Dry-run: preview what a listing URL would expand to without scraping
-dtfb "https://www.yourdealer.com/inventory/all-vehicles/" --dry-run
+lotstretcher "https://www.yourdealer.com/inventory/all-vehicles/" --dry-run
 
 # Run full inventory sync (processes new vehicles and flags delisted ones)
-dtfb "https://www.yourdealer.com/inventory/all-vehicles/" --out ~/Documents/listings --sync
+lotstretcher "https://www.yourdealer.com/inventory/all-vehicles/" --out ~/Documents/listings --sync
 ```
 
-**No VDP at all?** `dtfb` also accepts local photo folders in place of a URL -- a trade-in walked
+**No VDP at all?** `lotstretcher` also accepts local photo folders in place of a URL -- a trade-in walked
 around with a phone, an auction photo dump, a DAM export, anything with no dealership webpage to
 scrape. Drop photos in a folder, optionally add a `vehicle.json` with whatever `Vehicle` fields
-you know (year/make/model/price/description/... -- see `src/dtfb/local_source.py`), and it runs
+you know (year/make/model/price/description/... -- see `src/lotstretcher/local_source.py`), and it runs
 through the exact same CLIP/cutout/compose/copy pipeline as a scraped vehicle. Mix local folders
 and URLs freely in the same command; each is auto-detected by whether the argument is an existing
 directory.
 
 ```bash
 # my-trade-in/01.jpg, 02.jpg, ... + an optional vehicle.json
-dtfb ./my-trade-in --out ~/Documents/listings
+lotstretcher ./my-trade-in --out ~/Documents/listings
 
 # vehicle.json is optional -- without one you still get hero/video/cutouts,
 # just thinner post copy (no year/make/model to write sentences about)
@@ -319,14 +320,14 @@ Builds a CSV/TSV inventory feed from vehicles already scraped, in the shape thir
 (Meta/Facebook Automotive Inventory Ads, and by convergent convention most others) expect to ingest — VIN,
 price, mileage, colors, the dealer's own real photo URLs, one row per vehicle. There's no open, universal
 inventory feed standard (every DMS integration is a bespoke, gatekept vendor relationship), but *exporting*
-a feed needs nobody's permission — this just re-shapes data dtfb already has.
+a feed needs nobody's permission — this just re-shapes data lotstretcher already has.
 
 ```bash
 export-feed ~/Documents/listings --out feed.csv
 export-feed ~/Documents/listings/used --out used-feed.csv --condition used --tsv
 ```
 
-Read `src/dtfb/export_feed.py`'s module docstring before relying on this in production: the exact field
+Read `src/lotstretcher/export_feed.py`'s module docstring before relying on this in production: the exact field
 names were cross-confirmed from several independent secondary sources rather than pulled directly from
 Meta's own (JS-rendered, partially login-gated) spec page — validate the output against your destination
 platform's own feed validator, and adjust `FEED_COLUMNS`/`vehicle_to_row()` if reality differs; it's
@@ -339,8 +340,8 @@ licensed generic 3D CAD model (right for new inventory, wrong for used: it shows
 physical car). This is **not** true 3D reconstruction — that's confirmed research-stage industry-wide, not
 something any vendor ships at scale today. It's the same class of trick behind commercial "360 spin"
 products: synthesize a smooth rotation from a handful of real photos instead of requiring a turntable shoot.
-dtfb typically has 5 real angles per vehicle already — more anchor frames than the reference product's own
-4-photo baseline. See `src/dtfb/imaging/compose/spin.py`'s module docstring for the full scope/honesty
+lotstretcher typically has 5 real angles per vehicle already — more anchor frames than the reference product's own
+4-photo baseline. See `src/lotstretcher/imaging/compose/spin.py`'s module docstring for the full scope/honesty
 notes (one side's half-turn, not a full 360; classical cross-dissolve, not a trained view-synthesis model).
 
 ```bash
@@ -351,8 +352,8 @@ spin-video ~/Documents/listings/used/2023-Ford-F-150-Raptor-PFA30435/
 
 ## Server Mode
 
-`dtfb-serve` is a 9th command, opt-in and separate from the 8 above — a long-running HTTP service instead
-of a one-shot script, exposing dtfb's own classify/cutout/composite pipeline behind a
+`lotstretcher-serve` is a 9th command, opt-in and separate from the 8 above — a long-running HTTP service instead
+of a one-shot script, exposing lotstretcher's own classify/cutout/composite pipeline behind a
 [CarCutter](https://cloud.car-cutter.com/doc/api.html)-API-shaped surface: same request/response shapes
 where it matters for drop-in compatibility, self-hosted, and every line of processing code is readable
 (unlike the closed SaaS API it mirrors). It's a different front door onto the same imaging pipeline the CLI
@@ -362,10 +363,10 @@ uses, not a parallel implementation.
 # Install the server extra (kept separate so `pip install -e .` for CLI-only use never pulls in a web framework)
 pip install -e ".[server]"
 
-dtfb-serve --data-dir ~/.dtfb-server --port 8000
+lotstretcher-serve --data-dir ~/.lotstretcher-server --port 8000
 ```
 
-Core endpoints implemented (see `src/dtfb/server/app.py`'s module docstring for the full scope, including
+Core endpoints implemented (see `src/lotstretcher/server/app.py`'s module docstring for the full scope, including
 what's accepted-for-compatibility but not yet behavioral, e.g. `cut_type="blur"`):
 
 - `POST /vehicle/composition/single-segment` — sync, one image in, one composited result out.
@@ -389,37 +390,37 @@ The included `daily_sync.sh` wraps `inventory-sync` for unattended cron use: sta
 Configure it entirely via environment variables (defaults shown, all optional):
 
 ```bash
-export DTFB_REPO_DIR="/path/to/dtfb"                      # default: this deployment's checkout
-export DTFB_SCOPE="used"                                  # a name from dealer-config.json's inventory_urls
-# ...or set DTFB_INVENTORY_URL directly to skip scope resolution entirely
-export DTFB_LISTINGS_ROOT="/path/to/listings"
-export DTFB_CONFIG="/path/to/dealer-config.json"           # dealer_name/greeting/inventory_urls/etc
-export DTFB_LOG_DIR="/path/to/sync-logs"                   # default: ~/.local/sync-logs
+export LOTSTRETCHER_REPO_DIR="/path/to/lotstretcher"                      # default: this deployment's checkout
+export LOTSTRETCHER_SCOPE="used"                                  # a name from dealer-config.json's inventory_urls
+# ...or set LOTSTRETCHER_INVENTORY_URL directly to skip scope resolution entirely
+export LOTSTRETCHER_LISTINGS_ROOT="/path/to/listings"
+export LOTSTRETCHER_CONFIG="/path/to/dealer-config.json"           # dealer_name/greeting/inventory_urls/etc
+export LOTSTRETCHER_LOG_DIR="/path/to/sync-logs"                   # default: ~/.local/sync-logs
 ```
 
 Add a cron job (`crontab -e`) to run daily at 6:00 AM:
 
 ```cron
-0 6 * * * /path/to/dtfb/daily_sync.sh >> /var/log/dtfb-sync.log 2>&1
+0 6 * * * /path/to/lotstretcher/daily_sync.sh >> /var/log/lotstretcher-sync.log 2>&1
 ```
 
-(`daily_sync.sh` writes its own per-run log under `DTFB_LOG_DIR` regardless -- the redirect above just
+(`daily_sync.sh` writes its own per-run log under `LOTSTRETCHER_LOG_DIR` regardless -- the redirect above just
 catches anything printed before that log file exists, e.g. a missing `.venv`.)
 
 ---
 
 ## Adding Support for Other Dealership CMS Platforms
 
-`dtfb` comes out-of-the-box with support for **DealerInspire** CMS platforms. Adding support for another CMS (e.g. Dealer.com, DealerOn, CDK Global) is simple thanks to the pluggable extractor registry in `scrape.py`.
+`lotstretcher` comes out-of-the-box with support for **DealerInspire** CMS platforms. Adding support for another CMS (e.g. Dealer.com, DealerOn, CDK Global) is simple thanks to the pluggable extractor registry in `scrape.py`.
 
 ### How CMS Extraction Works
-Most automotive CMS platforms embed vehicle data directly into a JavaScript variable on the page for Google Tag Manager / analytics. `dtfb` searches the rendered HTML for this marker and extracts the balanced JSON object.
+Most automotive CMS platforms embed vehicle data directly into a JavaScript variable on the page for Google Tag Manager / analytics. `lotstretcher` searches the rendered HTML for this marker and extracts the balanced JSON object.
 
 ### Example: Adding a Custom CMS Extractor
 
 ```python
 # in scrape.py or an extension script:
-from dtfb.scrape import register_extractor, normalize_vehicle, Vehicle
+from lotstretcher.scrape import register_extractor, normalize_vehicle, Vehicle
 
 # 1. Define the JavaScript marker and validation function
 CUSTOM_CMS_MARKER = "window.digitalData = "
@@ -443,7 +444,7 @@ register_extractor("custom_cms", CUSTOM_CMS_MARKER, custom_cms_validator)
 - **Symptom**: `RuntimeError: Cloudflare challenge did not clear in time`.
 - **Cause**: The dealership website is presenting an interactive Cloudflare turnstile or rate-limiting requests.
 - **Solution**:
-  - `dtfb` automatically retries with exponential backoff and passes realistic browser headers.
+  - `lotstretcher` automatically retries with exponential backoff and passes realistic browser headers.
   - Avoid running dozens of parallel threads against the same domain simultaneously.
   - Test the URL in standard non-headless Chromium to verify your IP is not banned.
 
@@ -453,7 +454,7 @@ register_extractor("custom_cms", CUSTOM_CMS_MARKER, custom_cms_validator)
 
 ### 3. PyTorch / CUDA Out Of Memory (OOM)
 - **Symptom**: `torch.cuda.OutOfMemoryError: CUDA out of memory`, or (specifically for hero videos) `h264_nvenc`'s `CreateInputBuffer failed: out of memory`.
-- **Cause**: `dtfb` clears GPU cache between vehicles for the classification/cutout models, but `inventory-sync`'s batch pipeline deliberately overlaps a vehicle's hero-video rendering (parallel worker processes, each doing GPU-accelerated compositing plus an `h264_nvenc` encode) with the *next* vehicle's CLIP/rembg work on the main process — real concurrent GPU pressure, not a leak. On a smaller card (the reference numbers above assume 8+ GB) several concurrent encode sessions plus the classification models in memory at once can genuinely exceed what's free.
+- **Cause**: `lotstretcher` clears GPU cache between vehicles for the classification/cutout models, but `inventory-sync`'s batch pipeline deliberately overlaps a vehicle's hero-video rendering (parallel worker processes, each doing GPU-accelerated compositing plus an `h264_nvenc` encode) with the *next* vehicle's CLIP/rembg work on the main process — real concurrent GPU pressure, not a leak. On a smaller card (the reference numbers above assume 8+ GB) several concurrent encode sessions plus the classification models in memory at once can genuinely exceed what's free.
 - **Solution**:
   - Hero-video rendering already self-heals for this specific case: if `h264_nvenc` fails to open, `render_hero_video()` automatically retries the same video with the software `libx264` encoder rather than losing it — you'll see `[fell back to libx264, GPU was too busy for h264_nvenc]` in the sync log. No video is lost, it's just slower under load.
   - If OOM shows up elsewhere (classification/cutout, not video encoding), or the fallback itself is triggering constantly and slowing your syncs more than you'd like, lower `VIDEO_WORKERS`/`MAX_INFLIGHT_VEHICLES` in `inventory_sync.py`, or drop `--nvenc`/`video_encoder="h264_nvenc"` entirely to encode on CPU only.
@@ -471,7 +472,7 @@ register_extractor("custom_cms", CUSTOM_CMS_MARKER, custom_cms_validator)
 
 ## Testing
 
-`dtfb` includes a complete test suite:
+`lotstretcher` includes a complete test suite:
 
 ```bash
 # 1. Run unit tests
@@ -489,8 +490,8 @@ python regression.py
 ## Project Structure
 
 ```
-src/dtfb/            — Core package
-  ├── cli.py         — Main CLI entry point ('dtfb')
+src/lotstretcher/            — Core package
+  ├── cli.py         — Main CLI entry point ('lotstretcher')
   ├── inventory_sync.py — Cron-friendly inventory crawler and delist detector
   ├── compose_cli.py — Custom hero image layout composer
   ├── hero_video_cli.py — Animated video carousel generator
@@ -498,7 +499,7 @@ src/dtfb/            — Core package
   ├── recompose_cli.py — Recompose bundles with updated borders/assets
   ├── export_feed_cli.py — Inventory syndication feed generator (CSV/TSV)
   ├── spin_video_cli.py — Rotating spin video from real angle cutouts
-  ├── server/        — Opt-in CarCutter-API-shaped HTTP server (`dtfb-serve`)
+  ├── server/        — Opt-in CarCutter-API-shaped HTTP server (`lotstretcher-serve`)
   │   ├── app.py     — FastAPI endpoints (vehicle registry + image processing)
   │   ├── store.py   — SQLite-backed vehicle/submission registry
   │   └── processing.py — Shared fetch->classify->cutout->composite pipeline

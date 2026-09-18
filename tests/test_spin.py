@@ -1,11 +1,11 @@
 """Tests for imaging/compose/spin.py's pure ordering logic (roadmap item
-3, dtfb project graph decision 1449fdef). render_spin_video() itself needs
+3, lotstretcher project graph decision 1449fdef). render_spin_video() itself needs
 real cutouts + ffmpeg and is validated by hand (see the commit message),
 not here -- this covers order_for_spin()'s selection/ordering, which is
 plain data logic over angles.json."""
 import json
 
-from dtfb.imaging.compose.spin import SPIN_ANGLE_ORDER, order_for_spin
+from lotstretcher.imaging.compose.spin import SPIN_ANGLE_ORDER, order_for_spin
 
 
 def _write_angles(cutout_dir, entries):

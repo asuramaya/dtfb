@@ -1,11 +1,11 @@
 """Tests for export_feed.py -- the inventory-syndication feed generator
-(roadmap item 2, dtfb project graph decision 1449fdef). Pure data
+(roadmap item 2, lotstretcher project graph decision 1449fdef). Pure data
 transformation off details.json, no CV/CLIP needed, so this lives in the
 fast pytest suite rather than regression.py."""
 import csv
 import json
 
-from dtfb.export_feed import FEED_COLUMNS, build_rows, vehicle_to_row, write_csv
+from lotstretcher.export_feed import FEED_COLUMNS, build_rows, vehicle_to_row, write_csv
 
 
 def _write_details(folder, **overrides):

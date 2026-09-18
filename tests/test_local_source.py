@@ -1,10 +1,10 @@
-"""Tests for local_source.py's non-scrape entry point (dtfb project graph
+"""Tests for local_source.py's non-scrape entry point (lotstretcher project graph
 decision <local-source-entry>, roadmap item 6): building a Vehicle from a
 local photo folder instead of a scraped VDP. Pure logic only -- no CV
 models needed, just real (tiny, checked-in-adjacent) image bytes."""
 from PIL import Image
 
-from dtfb import local_source
+from lotstretcher import local_source
 
 
 def _make_image(path, size=(4, 4)):
